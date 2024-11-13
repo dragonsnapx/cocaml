@@ -1,0 +1,12 @@
+(menhir
+  (modules menhir_parser)
+)
+
+(library
+ (name cocaml)
+ (libraries 
+   core
+   ppx_jane
+ )
+ (preprocess (pps ppx_jane)) 
+)
