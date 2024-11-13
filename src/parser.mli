@@ -1,5 +1,5 @@
 
-type token =
+type keywords_token =
 	| AUTO
 	| BREAK
 	| CASE
@@ -33,3 +33,4 @@ type token =
 	| VOLATILE
 	| WHILE
 
+type syntax_
