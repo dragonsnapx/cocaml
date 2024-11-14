@@ -5,3 +5,9 @@
     --preprocess-only : Preprocesses the file and outputs the preprocessed result
 *)
 val compile : string -> (string * string) list -> unit
+
+(** Convert C code into C AST Tree *)
+val parse_c_to_ast : string -> Syntax_Node.t list
+
+(** Compile LLVM code using the LLVM backend, return based on success or failure *)
+val compile_llvm : string -> bool

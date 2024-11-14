@@ -33,4 +33,10 @@ type keywords_token =
 	| VOLATILE
 	| WHILE
 
-type syntax_
+module Syntax_Node : sig
+	type t
+	val pos_start : int
+  val pos_end : int
+	val token_type : keywords_token
+end
+
