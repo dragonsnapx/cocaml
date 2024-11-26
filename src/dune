@@ -2,6 +2,8 @@
   (modules menhir_parser)
 )
 
+(ocamllex lexer)
+
 (library
  (name cocaml)
  (libraries 
