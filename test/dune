@@ -1,0 +1,9 @@
+(test
+  (name tests)
+  (modules tests)
+  (libraries
+    core
+    ounit2
+    cocaml
+  )
+  (preprocess (pps ppx_jane)))
