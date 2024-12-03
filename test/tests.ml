@@ -1,7 +1,10 @@
-open Lexing
-open Parser
-open Lexer
+open Core
 open OUnit2
+open Lexer
+open Parser
+open Lexing
+
+let unimplemented () = ()
 
 module Lexer_tests = 
   struct 
@@ -32,16 +35,16 @@ module Lexer_tests =
         (tokens_of_string "if (x) { return 1; }")
 
     let test_lexer_sequences _ = 
-      unimplemented()
+      unimplemented ()
 
     let test_lexer_comments _ = 
-      unimplemented()
+      unimplemented ()
       
     let test_lexer_errors _ =
       assert_raises (Failure "Unexpected character at Line 1, column 1: Unexpected character")
-        (fun () -> tokens_of_string "$");
+        (fun () -> tokens_of_string "$")
 
-    let suite =
+    let series =
       "Lexer Tests" >::: [
         "Single Token Tests" >:: test_lexer_single_token;
         "Literal Tests" >:: test_lexer_literals;
@@ -54,7 +57,6 @@ module Lexer_tests =
 
 let series =
   "Tests" >:::
-  [ Lexer_tests.series
-  ]
+  [ Lexer_tests.series]
 
 let () = run_test_tt_main series

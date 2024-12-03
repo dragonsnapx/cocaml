@@ -4,6 +4,7 @@
 
   exception LexerError of string * Lexing.position
 
+  (* Utility function to raise a detailed lexer error *)
   let raise_error msg lexbuf =
     let pos = lexbuf.lex_curr_p in
     let line = pos.pos_lnum in
@@ -11,6 +12,7 @@
     raise (LexerError (Printf.sprintf "Line %d, column %d: %s" line col msg, pos))
 }
 
+(* Lexer rules *)
 let digit = ['0'-'9']
 let letter = ['a'-'z' 'A'-'Z']
 let identifier = letter (letter | digit | '_')*
@@ -35,6 +37,7 @@ rule token = parse
   | "case"         { CASE }
   | "default"      { DEFAULT }
   | "struct"       { STRUCT }
+  | "typedef"      { TYPEDEF }
   | digit+         { INT_LITERAL (int_of_string (Lexing.lexeme lexbuf)) }
   | digit+ '.' digit+ { FLOAT_LITERAL (float_of_string (Lexing.lexeme lexbuf)) }
   | '\'' [^'\''] '\'' { CHAR_LITERAL (Lexing.lexeme lexbuf).[1] }
@@ -48,18 +51,22 @@ rule token = parse
   | "*"            { STAR }
   | "/"            { SLASH }
   | "%"            { PERCENT }
-  | "=="           { EQ }
-  | "!="           { NEQ }
-  | "<"            { LT }
-  | "<="           { LE }
-  | ">"            { GT }
-  | ">="           { GE }
+  | "=="           { EQUAL }
+  | "!="           { NOT_EQUAL }
+  | "<"            { LESS_THAN }
+  | "<="           { LESS_EQUAL }
+  | ">"            { GREATER_THAN }
+  | ">="           { GREATER_EQUAL }
   | "&&"           { AND }
   | "||"           { OR }
   | "!"            { NOT }
-  | "&"            { BIT_AND }
+  | "&"            { AMPERSAND }
   | "|"            { BIT_OR }
   | "^"            { BIT_XOR }
   | "~"            { BIT_NOT }
   | "="            { ASSIGN }
+  | whitespace+    { token lexbuf } (* Ignore whitespace *)
+  | newline        { token lexbuf } (* Ignore newlines *)
+  | comment_single { token lexbuf } (* Ignore single-line comments *)
+  | comment_multi  { token lexbuf } (* Ignore multi-line comments *)
   | _              { raise_error "Unexpected character" lexbuf }

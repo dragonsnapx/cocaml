@@ -1,6 +1,6 @@
-(* Plan for the behavior of our parser -- I believe all of this logic will be implemented in menhir_parser.mly *)
+(* Plan for the behavior of our parser -- I believe all of this logic will be implemented in menhir_parser.mly 
 
-(* List of Menhir tokens *)
+
 type keywords_token =
 	| AUTO
 	| BREAK
@@ -20,7 +20,6 @@ type keywords_token =
 	| IF
 	| INT of int
 	| LONG of int64
-	| REGISTER
 	| RETURN
 	| SHORT
 	| SIGNED
@@ -29,10 +28,8 @@ type keywords_token =
 	| STRUCT
 	| SWITCH
 	| TYPEDEF
-	| UNION
 	| UNSIGNED
 	| VOID
-	| VOLATILE
 	| WHILE
 	| IDENT of string 			(* Do we need these last two? *)
     | EOF
@@ -85,5 +82,6 @@ module Syntax_Node : sig
 	  | Decl of decl
 	  | Stmt of stmt
 end
+*)
   
 
