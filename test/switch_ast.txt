@@ -1,0 +1,50 @@
+FuncDecl (
+  "main",
+  [],
+  Block (
+    [
+      VarDecl ("x", Some (IntLiteral (2, ...)), ...);
+      VarDecl ("y", Some (IntLiteral (0, ...)), ...);
+      Switch (
+        Var ("x", ...),
+        [
+          Case (
+            IntLiteral (1, ...),
+            [
+              ExprStmt (
+                Assign ("y", IntLiteral (42, ...), ...),
+                ...
+              );
+              Break (...)
+            ],
+            ...
+          );
+          Case (
+            IntLiteral (2, ...),
+            [
+              ExprStmt (
+                Assign ("y", IntLiteral (99, ...), ...),
+                ...
+              );
+              Break (...)
+            ],
+            ...
+          );
+          Default (
+            [
+              ExprStmt (
+                Assign ("y", IntLiteral (-1, ...), ...),
+                ...
+              )
+            ],
+            ...
+          )
+        ],
+        ...
+      );
+      Return (Var ("y", ...), ...)
+    ],
+    ...
+  ),
+  ...
+)

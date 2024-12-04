@@ -1,0 +1,13 @@
+FuncDecl (
+  "main",
+  [],
+  Block (
+    [
+      VarDecl ("y", None, ...);
+      ExprStmt (Assign ("y", IntLiteral (5, ...), ...), ...);
+      Return (Var ("y", ...), ...);
+    ],
+    ...
+  ),
+  ...
+)

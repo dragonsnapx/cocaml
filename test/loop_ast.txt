@@ -1,0 +1,31 @@
+FuncDecl (
+  "main",
+  [],
+  Block (
+    [
+      VarDecl ("x", Some (IntLiteral (0, ...)), ...);
+      For (
+        VarDecl ("i", Some (IntLiteral (0, ...)), ...),
+        BinOp ("<", Var ("i", ...), IntLiteral (10, ...), ...),
+        Assign ("i", BinOp ("+", Var ("i", ...), IntLiteral (1, ...), ...), ...),
+        Block (
+          [
+            ExprStmt (
+              Assign (
+                "x",
+                BinOp ("+", Var ("x", ...), Var ("i", ...), ...),
+                ...
+              ),
+              ...
+            )
+          ],
+          ...
+        ),
+        ...
+      );
+      Return (Var ("x", ...), ...)
+    ],
+    ...
+  ),
+  ...
+)
