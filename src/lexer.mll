@@ -36,11 +36,12 @@ rule token = parse
   | "switch"       { SWITCH }
   | "case"         { CASE }
   | "default"      { DEFAULT }
+  | "break"        { BREAK }
   | "struct"       { STRUCT }
   | "typedef"      { TYPEDEF }
   | digit+         { INT_LITERAL (int_of_string (Lexing.lexeme lexbuf)) }
   | digit+ '.' digit+ { FLOAT_LITERAL (float_of_string (Lexing.lexeme lexbuf)) }
-  | '\'' [^'\''] '\'' { CHAR_LITERAL (Lexing.lexeme lexbuf).[1] }
+  | '\'' [^'\''] '\'' { CHAR_LITERAL (Lexing.lexeme lexbuf).[1] }   
   | identifier     { IDENT (Lexing.lexeme lexbuf) }
   | "("            { LPAREN }
   | ")"            { RPAREN }
@@ -69,4 +70,5 @@ rule token = parse
   | newline        { token lexbuf } (* Ignore newlines *)
   | comment_single { token lexbuf } (* Ignore single-line comments *)
   | comment_multi  { token lexbuf } (* Ignore multi-line comments *)
+  | eof            { EOF }          (* End of file *)
   | _              { raise_error "Unexpected character" lexbuf }
