@@ -9,7 +9,17 @@ let with_position start_pos end_pos f =
   let position = create_position start_pos end_pos in
   f position
 
-	type expr =
+type vartype =
+  | Int
+  | Float
+  | Char
+  | Double
+  | Void
+  | Custom of string
+  | Pointer of vartype
+  | Array of vartype * int
+
+type expr =
   | IntLiteral of int * position
   | FloatLiteral of float * position
   | CharLiteral of char * position
@@ -33,8 +43,8 @@ and case =
 	| Default of stmt list * position
 	
 type decl =
-  | VarDecl of string * expr option * position
-  | FuncDecl of string * string list * stmt * position
+  | VarDecl of vartype * string * expr option * position
+  | FuncDecl of vartype * vartype list * stmt * position
   | Typedef of string * string * position
   | StructDecl of string * decl list * position
   

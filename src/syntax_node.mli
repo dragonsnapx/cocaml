@@ -6,6 +6,16 @@ type position = {
 val create_position : int -> int -> position
 val with_position : int -> int -> (position -> 'a) -> 'a
 
+
+type vartype =
+  | Int
+  | Float
+  | Char
+  | Double
+  | Void
+  | Custom of string
+  | Pointer of vartype
+
 type expr =
   | IntLiteral of int * position
   | FloatLiteral of float * position
@@ -26,15 +36,15 @@ type stmt =
   | Switch of expr * case list * position
 
 and case =
-  | Case of expr * stmt list * position
-  | Default of stmt list * position
-
+	| Case of expr * stmt list * position
+	| Default of stmt list * position
+	
 type decl =
-  | VarDecl of string * expr option * position
-  | FuncDecl of string * string list * stmt * position
+  | VarDecl of vartype * string * expr option * position
+  | FuncDecl of vartype * vartype list * stmt * position
   | Typedef of string * string * position
   | StructDecl of string * decl list * position
-
+  
 type t =
-  | Decl of decl
-  | Stmt of stmt
+	| Decl of decl
+	| Stmt of stmt
