@@ -15,6 +15,7 @@ type vartype =
   | Int
   | Float
   | Char
+  | Long
   | Double
   | Void
   | Custom of ident
@@ -39,11 +40,12 @@ type bin_op =
   | BitwiseXor   
   
 type un_op =
-  | Negate         
-  | LogicalNot    
+  | Positive
+  | Negative         
+  | LogicalNot   
+  | BitwiseNot   
   | Address        
   | Dereference    
-  | Plus
 
 type expr =
   | IntLiteral of int * position
@@ -63,6 +65,9 @@ type stmt =
   | ExprStmt of expr * position
   | Block of stmt list * position
   | Switch of expr * case list * position
+  | Break of position
+  | Continue of position
+  | DoWhile of stmt * expr * position
 
 and case =
 	| Case of expr * stmt list * position
@@ -74,6 +79,8 @@ type decl =
   | Typedef of vartype * vartype * position                                   
   | StructDecl of ident * decl list * position                               
   
+type prog = Prog of decl list 
+
 type t =
 	| Decl of decl
 	| Stmt of stmt
