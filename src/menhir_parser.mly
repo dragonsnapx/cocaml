@@ -33,8 +33,8 @@
 %token AMPERSAND
 %token EOF
 
-(* Entry point *)
-%type <Syntax_node.decl list> program
+(* Entry point for program parsing *)
+%type <Syntax_node.prog> program
 %start program
 
 %%

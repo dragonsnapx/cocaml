@@ -1,5 +1,5 @@
 {
-  open Parser
+  open Menhir_parser
   open Lexing
 
   exception LexerError of string * Lexing.position
