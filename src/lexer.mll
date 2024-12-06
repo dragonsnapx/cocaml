@@ -1,5 +1,5 @@
 {
-  open Parser
+  open Menhir_parser
   open Lexing
 
   exception LexerError of string * Lexing.position
@@ -27,6 +27,7 @@ rule token = parse
   | "char"         { CHAR }
   | "long"         { LONG }
   | "double"       { DOUBLE }
+  | "void"         { VOID }
   | "return"       { RETURN }
   | "if"           { IF }
   | "else"         { ELSE }

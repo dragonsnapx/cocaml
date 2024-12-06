@@ -1,13 +1,43 @@
-FuncDecl (
-  "main",
-  [],
-  Block (
-    [
-      VarDecl ("y", None, ...);
-      ExprStmt (Assign ("y", IntLiteral (5, ...), ...), ...);
-      Return (Var ("y", ...), ...);
-    ],
-    ...
-  ),
-  ...
+Decl (
+  FuncDecl (
+    Int,                            (* Return type *)
+    Ident "main",                   (* Function name *)
+    [],                             (* Parameters *)
+    Block (                         (* Function body *)
+      [
+        Decl (
+          VarDecl (
+            Int,                    (* Variable type: int *)
+            Ident "y",              (* Variable name: y *)
+            None,                   (* Initialization *)
+            { pos_start = ; pos_end = }
+          )
+        );
+        Stmt (
+          ExprStmt (
+            Assign (
+              Ident "y",            (* LHS: Variable y *)
+              IntLiteral (          (* RHS: IntLiteral 5 *)
+                5,
+                { pos_start = ; pos_end = }
+              ),
+              { pos_start = ; pos_end = }
+            ),
+            { pos_start = ; pos_end = } (* Also need entire statement position *)
+          )
+        );
+        Stmt (
+          Return (
+            Var (                   (* We return variable y *)
+              Ident "y",
+              { pos_start = ; pos_end = }
+            ),
+            { pos_start = ; pos_end =  } (* Again need entire statement position *)
+          )
+        )
+      ],
+      { pos_start = ; pos_end = }       (* Block position *)
+    ),
+    { pos_start = ; pos_end = }         (* Function position *)
+  )
 )
