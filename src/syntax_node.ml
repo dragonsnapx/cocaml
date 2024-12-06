@@ -1,3 +1,5 @@
+open Core
+
 type position = {
   pos_start: int; 
   pos_end: int;
@@ -9,7 +11,7 @@ let with_position start_pos end_pos f =
   let position = create_position start_pos end_pos in
   f position
 
-type ident = Ident of string
+type ident = Ident of string [@@deriving compare]
 
 type vartype =
   | Int
@@ -18,7 +20,7 @@ type vartype =
   | Double
   | Void
   | Custom of ident
-  | Pointer of vartype
+  | Pointer of vartype [@@deriving compare]
 
 type bin_op =
   | Plus           
