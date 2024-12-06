@@ -80,7 +80,8 @@ param_list_non_empty:
   | param_list_non_empty COMMA type_spec IDENT { $1 @ [($3, Syntax_node.Ident $4)] }
 
 stmt_block:
-  | LBRACE stmt_list RBRACE { $2 }
+  | LBRACE stmt_list RBRACE { Syntax_node.Block ($2, Syntax_node.create_position 0 0) }
+  (* | LBRACE stmt_list RBRACE { Syntax_node.Block ($2, make_position lexbuf) } *)
 
 stmt_list:
   | { [] }
@@ -106,7 +107,7 @@ stmt:
       Syntax_node.ExprStmt ($1, make_position lexbuf)
     }
   | stmt_block {
-      Syntax_node.Block ($1, make_position lexbuf)
+      $1 (* Syntax_node.Block ($1, make_position lexbuf) *)
     }
   | SWITCH LPAREN expr RPAREN LBRACE case_list RBRACE {
       Syntax_node.Switch ($3, $6, make_position lexbuf)
