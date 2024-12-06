@@ -40,11 +40,16 @@
 %%
 
 (*
- * Our program is nothing but a sequence of declarations and statements. All statements
- * should occur within declarations (i.e. functions), meaning they'll be contained in decl_list.
+ * At the top-level, our program is nothing but a sequence of declarations (mostly function calls).
+ * All statements, expressions, and other lower-level components should occur within these declarations.
  *)
 program:
   | decl_list EOF { $1 }
+
+
+(****************************)
+(* Part #1: Declarations    *)
+(****************************)
 
 decl_list:
   | { [] }               
@@ -71,6 +76,7 @@ decl:
       Syntax_node.VarDecl (Syntax_node.Void, Syntax_node.Ident "error", None, make_position lexbuf)
     }
 
+(* Function parameters *)
 param_list:
   | { [] }
   | param_list_non_empty { $1 }
@@ -79,9 +85,18 @@ param_list_non_empty:
   | type_spec IDENT { [($1, Syntax_node.Ident $2)] }
   | param_list_non_empty COMMA type_spec IDENT { $1 @ [($3, Syntax_node.Ident $4)] }
 
+
+(****************************)
+(* Part #2: Statements      *)
+(****************************)
+
+(* 
+ * Note: Statements are more general than declarations. Function declarations contain stmt_blocks, which wrap 
+ * stmt_lists. 
+ *)
+
 stmt_block:
-  | LBRACE stmt_list RBRACE { Syntax_node.Block ($2, Syntax_node.create_position 0 0) }
-  (* | LBRACE stmt_list RBRACE { Syntax_node.Block ($2, make_position lexbuf) } *)
+  | LBRACE stmt_list RBRACE { Syntax_node.Block ($2, make_position lexbuf) }
 
 stmt_list:
   | { [] }
@@ -107,7 +122,7 @@ stmt:
       Syntax_node.ExprStmt ($1, make_position lexbuf)
     }
   | stmt_block {
-      $1 (* Syntax_node.Block ($1, make_position lexbuf) *)
+      $1 (* Used for nested statements -- i.e. if, while, etc. *)
     }
   | SWITCH LPAREN expr RPAREN LBRACE case_list RBRACE {
       Syntax_node.Switch ($3, $6, make_position lexbuf)
@@ -122,6 +137,7 @@ stmt:
       Syntax_node.Continue (make_position lexbuf)
     }
 
+(* Cases for switch statements *)
 case_list:
   | { [] }
   | case_list case { $1 @ [$2] }
@@ -134,6 +150,13 @@ case:
       Syntax_node.Default ($3, make_position lexbuf)
     }
 
+(*****************************)
+(* Part #3: Expressions      *)
+(*****************************)
+
+(* 
+ * Note: Expressions are the basic building blocks of statements, by enforcing local relationships between tokens.
+ *)
 expr:
   | INT_LITERAL {
       Syntax_node.IntLiteral ($1, make_position lexbuf)
@@ -167,6 +190,7 @@ expr:
       Syntax_node.Var ("error", make_position lexbuf)
     }
 
+(* Arguments for function calls *)
 arg_list:
   | { [] }
   | expr_list { $1 }
@@ -174,6 +198,23 @@ arg_list:
 expr_list:
   | expr { [$1] }
   | expr_list COMMA expr { $1 @ [$3] }
+
+
+(***********************************)
+(* Part #4: Types and Operations   *)
+(***********************************)
+
+(*
+ * Note: Atomic units of our grammar. Every token in our lexer should be matched to at least one of these 
+ *)
+type_spec:
+  | INT { Syntax_node.Int }
+  | FLOAT { Syntax_node.Float }
+  | CHAR { Syntax_node.Char }
+  | DOUBLE { Syntax_node.Double }
+  | LONG { Syntax_node.Long }
+  | VOID { Syntax_node.Void }
+  | IDENT { Syntax_node.Custom (Syntax_node.Ident $1) }
 
 bin_ops:
   | PLUS { Syntax_node.Plus }
@@ -200,13 +241,4 @@ un_ops:
   | STAR { Syntax_node.Dereference }
   | AMPERSAND { Syntax_node.Address }
   | BIT_NOT { Syntax_node.BitwiseNot }
-
-type_spec:
-  | INT { Syntax_node.Int }
-  | FLOAT { Syntax_node.Float }
-  | CHAR { Syntax_node.Char }
-  | DOUBLE { Syntax_node.Double }
-  | LONG { Syntax_node.Long }
-  | VOID { Syntax_node.Void }
-  | IDENT { Syntax_node.Custom (Syntax_node.Ident $1) }
 
