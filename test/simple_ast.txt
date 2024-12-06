@@ -31,6 +31,7 @@ Decl (
             Var (                   (* We return variable y *)
               Ident "y",
               { pos_start = ; pos_end = }
+              { pos_start = ; pos_end = }
             ),
             { pos_start = ; pos_end =  } (* Again need entire statement position *)
           )
