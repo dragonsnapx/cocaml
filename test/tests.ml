@@ -68,7 +68,7 @@ module Lexer_tests =
     (* Convert an S-expression string to a Syntax_node.prog *)
     let prog_of_sexp sexp_str =
       let sexp = Sexp.of_string sexp_str in
-      Syntax_node.prog_of_sexp sexp
+      Cocaml.Syntax_node.prog_of_sexp sexp
   
 
     let test_parse_c_to_ast _ =
@@ -107,6 +107,7 @@ module Translator_tests =
         X.Int ,
         (X.Ident "main"),
         [
+          (X.Int, (X.Ident "argc"))
         ],
         X.Block ([
         ], _pos),
@@ -115,7 +116,7 @@ module Translator_tests =
     ]
     let first_test _ =
       M.generate_llvm_ir program |> ignore;
-      M.print_module_to_file "../../../test/test.ll";
+      M.print_module_to_file "../../../test/test_result.ll";
 
       assert_equal 1 1
 
