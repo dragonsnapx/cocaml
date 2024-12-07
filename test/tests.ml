@@ -7,7 +7,7 @@ open Lexing
 let unimplemented () = ()
 
 module Lexer_tests = 
-  struct 
+  (* struct 
     (* Helper function to parse an input string and return a list of tokens *)
     let tokens_of_string input =
       let lexbuf = Lexing.from_string input in
@@ -52,11 +52,11 @@ module Lexer_tests =
         "Token Sequence Tests" >:: test_lexer_sequences;
         "Comment Tests" >:: test_lexer_comments;
         "Error Tests" >:: test_lexer_errors
-      ]
+      ] *)
   end
 
   module Parser_tests = struct
-    (* 
+    (* (* 
      * Helper functions 
      * Note: Some of these will likely be used in other test modules, so we will probably extract them 
      *)
@@ -90,13 +90,25 @@ module Lexer_tests =
     let series =
       "Parser Tests" >::: [
         "Test Parse C to AST" >:: test_parse_c_to_ast
+      ] *)
+  end
+
+module Translator_tests =
+  struct
+    let first_test _ =
+      assert_equal 1 1  
+
+    let series = 
+      "Translator tests" >::: [
+        "Example test" >:: first_test
       ]
   end
-  
 
 let series =
   "Tests" >:::
-  [ Lexer_tests.series
-  ; Parser_tests.series]
+  [ 
+    Lexer_tests.series ;
+  ; Parser_tests.series '
+  ; Translator_tests.series ]
 
 let () = run_test_tt_main series

@@ -1,4 +1,4 @@
-[@@@ocaml.warning "-39-32-27"]
+[@@@ocaml.warning "-39-32-27-69"]
 open Core
 module L = Llvm
 module S = Syntax_node
@@ -28,9 +28,6 @@ struct
 
   let functions: (S.ident, DefinedFunc.t) Hashtbl.t = Hashtbl.Poly.create ()
   let mixins = Hashtbl.create
-
-  type types_hashtbl_key = S.ident * L.lltype
-
   let types: (S.ident, L.lltype) Hashtbl.t = Hashtbl.Poly.create ()
   let variables: (S.ident, DefinedVar.t) Hashtbl.t = Hashtbl.Poly.create ()
 
