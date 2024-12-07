@@ -172,6 +172,9 @@ struct
       end
     | StructDecl (_, _, _) -> ()
 
+  let parse_stmt_block (stmts: S.stmt list) (scoped_fn: L.llvalue): unit =
+    
+
   let parse_stmt (stmt: S.stmt) (scoped_fn: L.llvalue): L.llvalue =
     match stmt with
     | Return (expr, _) -> L.build_ret (parse_expr expr scoped_fn) builder

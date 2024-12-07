@@ -7,7 +7,7 @@ val create_position : int -> int -> position
 val with_position : int -> int -> (position -> 'a) -> 'a
 
 (* Identifier type for variable, function, and user-defined type names *)
-type ident = Ident of string
+type ident = Ident of string [@@deriving compare]
 
 (* Type annotations for variables and function return types *)
 type vartype =
@@ -18,7 +18,7 @@ type vartype =
   | Double
   | Void
   | Custom of ident
-  | Pointer of vartype
+  | Pointer of vartype [@@deriving compare]
 
 type bin_op =
   | Plus           

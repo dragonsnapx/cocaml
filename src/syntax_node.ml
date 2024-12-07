@@ -86,4 +86,3 @@ type prog = Prog of decl list
 type t =
 	| Decl of decl
 	| Stmt of stmt
-
