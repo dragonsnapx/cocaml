@@ -7,13 +7,3 @@
     cocaml
   )
   (preprocess (pps ppx_jane)))
-
-(test
-  (name translator_tests)
-  (modules translator_tests)
-  (libraries
-    core
-    ounit2
-    cocaml
-  )
-  (preprocess (pps ppx_jane)))
