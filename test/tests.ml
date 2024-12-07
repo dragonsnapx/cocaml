@@ -1,7 +1,7 @@
 open Core
 open OUnit2
 open Lexer
-open Menhir_parser
+open Cocaml.Menhir_parser
 open Lexing
 
 let unimplemented () = ()
@@ -95,8 +95,29 @@ module Lexer_tests =
 
 module Translator_tests =
   struct
+    module X = Cocaml.Syntax_node
+    module M = Cocaml.Translator.TranslateFile
+    let _pos: X.position = { pos_start = 5; pos_end = 12 }
+
+    let ignore _ = ()
+
+
+    let program : X.prog = X.Prog [
+      X.FuncDecl (
+        X.Int ,
+        (X.Ident "main"),
+        [
+        ],
+        X.Block ([
+        ], _pos),
+        _pos
+      )
+    ]
     let first_test _ =
-      assert_equal 1 1  
+      M.generate_llvm_ir program |> ignore;
+      M.print_module_to_file "../../../test/test.ll";
+
+      assert_equal 1 1
 
     let series = 
       "Translator tests" >::: [
@@ -107,8 +128,8 @@ module Translator_tests =
 let series =
   "Tests" >:::
   [ 
-    Lexer_tests.series ;
-  ; Parser_tests.series '
+    Lexer_tests.series
+  ; Parser_tests.series
   ; Translator_tests.series ]
 
 let () = run_test_tt_main series
