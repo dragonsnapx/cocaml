@@ -82,7 +82,3 @@ type decl =
   | StructDecl of ident * decl list * position                               
   
 type prog = Prog of decl list 
-
-type t =
-	| Decl of decl
-	| Stmt of stmt

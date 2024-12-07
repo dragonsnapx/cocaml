@@ -1,44 +1,46 @@
+(* Sketch of what the expected AST should look like *)
+(* Note: This is not used as the input sexp, rather, see simple_ast_sexp.txt *)
+
 Decl (
   FuncDecl (
-    Int,                            (* Return type *)
-    Ident "main",                   (* Function name *)
-    [],                             (* Parameters *)
-    Block (                         (* Function body *)
+    Int,                                                (* Return type *)
+    Ident "main",                                       (* Function name *)
+    [],                                                 (* No parameters *)
+    Block (                                 
       [
-        Decl (
+        Decl (                                          (* Declaration of variable y *)
           VarDecl (
-            Int,                    (* Variable type: int *)
-            Ident "y",              (* Variable name: y *)
-            None,                   (* Initialization *)
-            { pos_start = ; pos_end = }
+            Int,                    
+            Ident "y",              
+            None,                   
+            { pos_start = 5; pos_end = 12 }             (* File-relative position of Declaration *)
           )
         );
-        Stmt (
+        Stmt (                                          (* Statement: y = 5; *)
           ExprStmt (
             Assign (
-              Ident "y",            (* LHS: Variable y *)
-              IntLiteral (          (* RHS: IntLiteral 5 *)
+              Ident "y",                                (* LHS: variable y *)
+              IntLiteral (                              (* RHS: integer literal 5 *)
                 5,
-                { pos_start = ; pos_end = }
+                { pos_start = 15; pos_end = 16 }       
               ),
-              { pos_start = ; pos_end = }
+              { pos_start = 13; pos_end = 17 }          
             ),
-            { pos_start = ; pos_end = } (* Also need entire statement position *)
+            { pos_start = 13; pos_end = 18 }    
           )
         );
-        Stmt (
+        Stmt (                                          (* Return statement *)
           Return (
-            Var (                   (* We return variable y *)
-              Ident "y",
-              { pos_start = ; pos_end = }
-              { pos_start = ; pos_end = }
+            Var (
+              Ident "y",                                (* Variable we are returning *)
+              { pos_start = 25; pos_end = 26 }          (* Position of variable y *)
             ),
-            { pos_start = ; pos_end =  } (* Again need entire statement position *)
+            { pos_start = 18; pos_end = 27 }            (* Position of outer return statement *)
           )
         )
       ],
-      { pos_start = ; pos_end = }       (* Block position *)
+      { pos_start = 3; pos_end = 28 }                   (* Position of the block *)
     ),
-    { pos_start = ; pos_end = }         (* Function position *)
+    { pos_start = 1; pos_end = 28 }                     (* Position of the function *)
   )
 )

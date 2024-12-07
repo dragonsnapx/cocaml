@@ -1,7 +1,7 @@
 open Core
 open OUnit2
 open Lexer
-open Parser
+open Menhir_parser
 open Lexing
 
 let unimplemented () = ()
@@ -55,8 +55,48 @@ module Lexer_tests =
       ]
   end
 
+  module Parser_tests = struct
+    (* 
+     * Helper functions 
+     * Note: Some of these will likely be used in other test modules, so we will probably extract them 
+     *)
+
+    (* Read a file into a string *)
+    let read_file filename =
+      In_channel.read_all filename
+  
+    (* Convert an S-expression string to a Syntax_node.prog *)
+    let prog_of_sexp sexp_str =
+      let sexp = Sexp.of_string sexp_str in
+      Syntax_node.prog_of_sexp sexp
+  
+
+    let test_parse_c_to_ast _ =
+      let input_code = read_file "simple.c" in
+      let derived_ast = Main.parse_c_to_ast input_code in
+  
+      (* Read in simple_ast.txt as the expected tree *)
+      let expected_ast =
+        read_file "simple_ast_sexp.txt" |> prog_of_sexp
+      in
+  
+      (* Compare the derived tree to the expected tree *)
+      assert_equal
+        ~cmp:Syntax_node.equal_prog
+        ~printer:Syntax_node.show_prog
+        expected_ast
+        derived_ast
+
+    let series =
+      "Parser Tests" >::: [
+        "Test Parse C to AST" >:: test_parse_c_to_ast
+      ]
+  end
+  
+
 let series =
   "Tests" >:::
-  [ Lexer_tests.series]
+  [ Lexer_tests.series
+  ; Parser_tests.series]
 
 let () = run_test_tt_main series
