@@ -1,11 +1,7 @@
 %{
-  open Syntax_node
-
-  (* Helper function to compute positions from lexbuf *)
-  let make_position lexbuf =
-    let pos_start = Lexing.lexeme_start_p lexbuf in
-    let pos_end = Lexing.lexeme_end_p lexbuf in
-    Syntax_node.create_position pos_start.pos_cnum pos_end.pos_cnum
+  (* Helper function to unwrap Lexing positions *)
+  let make_position (startpos: Lexing.position) (endpos: Lexing.position)  =
+    Syntax_node.create_position startpos.pos_cnum endpos.pos_cnum
 %}
 
 (* Tokens with precedence and associativity *)
@@ -15,7 +11,6 @@
 %left LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
 %left PLUS MINUS
 %left STAR SLASH
-%right NOT
 %right ASSIGN
 
 (* Tokens List *)
@@ -44,7 +39,7 @@
  * All statements, expressions, and other lower-level components should occur within these declarations.
  *)
 program:
-  | decl_list EOF { $1 }
+  | decl_list EOF { Syntax_node.Prog $1 }
 
 
 (****************************)
@@ -57,23 +52,23 @@ decl_list:
 
 decl:
   | type_spec IDENT SEMI {
-      Syntax_node.VarDecl ($1, Syntax_node.Ident $2, None, make_position lexbuf)
+      Syntax_node.VarDecl ($1, Syntax_node.Ident $2, None, make_position $startpos $endpos)
     }
   | type_spec IDENT ASSIGN expr SEMI {
-      Syntax_node.VarDecl ($1, Syntax_node.Ident $2, Some $4, make_position lexbuf)
+      Syntax_node.VarDecl ($1, Syntax_node.Ident $2, Some $4, make_position $startpos $endpos)
     }
   | type_spec IDENT LPAREN param_list RPAREN stmt_block {
-      Syntax_node.FuncDecl ($1, Syntax_node.Ident $2, $4, $6, make_position lexbuf)
+      Syntax_node.FuncDecl ($1, Syntax_node.Ident $2, $4, $6, make_position $startpos $endpos)
     }
   | TYPEDEF type_spec IDENT SEMI {
-      Syntax_node.Typedef ($2, Syntax_node.Custom (Syntax_node.Ident $3), make_position lexbuf)
+      Syntax_node.Typedef ($2, Syntax_node.Custom (Syntax_node.Ident $3), make_position $startpos $endpos)
     }
   | STRUCT IDENT LBRACE decl_list RBRACE SEMI {
-      Syntax_node.StructDecl (Syntax_node.Ident $2, $4, make_position lexbuf)
+      Syntax_node.StructDecl (Syntax_node.Ident $2, $4, make_position $startpos $endpos)
     }
   | error SEMI {
       Printf.eprintf "Syntax error in declaration.\n";
-      Syntax_node.VarDecl (Syntax_node.Void, Syntax_node.Ident "error", None, make_position lexbuf)
+      Syntax_node.VarDecl (Syntax_node.Void, Syntax_node.Ident "error", None, make_position $startpos $endpos)
     }
 
 (* Function parameters *)
@@ -96,7 +91,7 @@ param_list_non_empty:
  *)
 
 stmt_block:
-  | LBRACE stmt_list RBRACE { Syntax_node.Block ($2, make_position lexbuf) }
+  | LBRACE stmt_list RBRACE { Syntax_node.Block ($2, make_position $startpos $endpos) }
 
 stmt_list:
   | { [] }
@@ -104,37 +99,37 @@ stmt_list:
 
 stmt:
   | RETURN expr SEMI {
-      Syntax_node.Return ($2, make_position lexbuf)
+      Syntax_node.Return ($2, make_position $startpos $endpos)
     }
   | IF LPAREN expr RPAREN stmt ELSE stmt {
-      Syntax_node.If ($3, $5, Some $7, make_position lexbuf)
+      Syntax_node.If ($3, $5, Some $7, make_position $startpos $endpos)
     }
   | IF LPAREN expr RPAREN stmt {
-      Syntax_node.If ($3, $5, None, make_position lexbuf)
+      Syntax_node.If ($3, $5, None, make_position $startpos $endpos)
     }
   | WHILE LPAREN expr RPAREN stmt {
-      Syntax_node.While ($3, $5, make_position lexbuf)
+      Syntax_node.While ($3, $5, make_position $startpos $endpos)
     }
   | FOR LPAREN expr SEMI expr SEMI expr RPAREN stmt {
-      Syntax_node.For ($3, $5, $7, $9, make_position lexbuf)
+      Syntax_node.For ($3, $5, $7, $9, make_position $startpos $endpos)
     }
   | expr SEMI {
-      Syntax_node.ExprStmt ($1, make_position lexbuf)
+      Syntax_node.ExprStmt ($1, make_position $startpos $endpos)
     }
   | stmt_block {
       $1 (* Used for nested statements -- i.e. if, while, etc. *)
     }
   | SWITCH LPAREN expr RPAREN LBRACE case_list RBRACE {
-      Syntax_node.Switch ($3, $6, make_position lexbuf)
+      Syntax_node.Switch ($3, $6, make_position $startpos $endpos)
     }
   | DO stmt WHILE LPAREN expr RPAREN SEMI {
-      Syntax_node.DoWhile ($2, $5, make_position lexbuf)
+      Syntax_node.DoWhile ($2, $5, make_position $startpos $endpos)
     }
   | BREAK SEMI {
-      Syntax_node.Break (make_position lexbuf)
+      Syntax_node.Break (make_position $startpos $endpos)
     }
   | CONTINUE SEMI {
-      Syntax_node.Continue (make_position lexbuf)
+      Syntax_node.Continue (make_position $startpos $endpos)
     }
 
 (* Cases for switch statements *)
@@ -144,10 +139,10 @@ case_list:
 
 case:
   | CASE expr COLON stmt_list {
-      Syntax_node.Case ($2, $4, make_position lexbuf)
+      Syntax_node.Case ($2, $4, make_position $startpos $endpos)
     }
   | DEFAULT COLON stmt_list {
-      Syntax_node.Default ($3, make_position lexbuf)
+      Syntax_node.Default ($3, make_position $startpos $endpos)
     }
 
 (*****************************)
@@ -159,35 +154,37 @@ case:
  *)
 expr:
   | INT_LITERAL {
-      Syntax_node.IntLiteral ($1, make_position lexbuf)
+      Syntax_node.IntLiteral ($1, make_position $startpos $endpos)
     }
   | FLOAT_LITERAL {
-      Syntax_node.FloatLiteral ($1, make_position lexbuf)
+      Syntax_node.FloatLiteral ($1, make_position $startpos $endpos)
     }
   | CHAR_LITERAL {
-      Syntax_node.CharLiteral ($1, make_position lexbuf)
+      Syntax_node.CharLiteral ($1, make_position $startpos $endpos)
     }
   | IDENT {
-      Syntax_node.Var (Syntax_node.Ident $1, make_position lexbuf)
+      Syntax_node.Var (Syntax_node.Ident $1, make_position $startpos $endpos)
     }
   | IDENT ASSIGN expr {
-      Syntax_node.Assign (Syntax_node.Ident $1, $3, make_position lexbuf)
+      Syntax_node.Assign (Syntax_node.Ident $1, $3, make_position $startpos $endpos)
     }
   | IDENT LPAREN arg_list RPAREN {
-      Syntax_node.Call (Syntax_node.Ident $1, $3, make_position lexbuf)
+      Syntax_node.Call (Syntax_node.Ident $1, $3, make_position $startpos $endpos)
     }
   | expr bin_ops expr {
-      Syntax_node.BinOp ($2, $1, $3, make_position lexbuf)
+      Syntax_node.BinOp ($2, $1, $3, make_position $startpos $endpos)
     }
   | un_ops expr {
-      Syntax_node.UnOp ($1, $2, make_position lexbuf)
+      Syntax_node.UnOp ($1, $2, make_position $startpos $endpos)
     }
   | LPAREN expr RPAREN {
       $2
     }
   | error {
-      Printf.eprintf "Syntax error in expression at line %d.\n" (Lexing.lexeme_start_p lexbuf).pos_lnum;
-      Syntax_node.Var ("error", make_position lexbuf)
+      (* Note: The below is out of scope -- will have to figure out why *)
+      (* Printf.eprintf "Syntax error in expression at line %d.\n" $startpos.pos_lnum; *)
+      Printf.eprintf "Syntax error in expression";
+      Syntax_node.Var (Syntax_node.Ident "error", make_position $startpos $endpos)
     }
 
 (* Arguments for function calls *)
