@@ -35,10 +35,23 @@ module Lexer_tests =
         (tokens_of_string "if (x) { return 1; }")
 
     let test_lexer_sequences _ = 
-      unimplemented ()
+      assert_equal [INT; IDENT "x"; SEMI; RETURN; INT_LITERAL 0; SEMI]
+        (tokens_of_string "int x; return 0;");
+      assert_equal [IF; LPAREN; IDENT "a"; EQEQ; IDENT "b"; RPAREN; LBRACE; RETURN; INT_LITERAL 1; SEMI; RBRACE]
+        (tokens_of_string "if (a == b) { return 1; }")
 
     let test_lexer_comments _ = 
-      unimplemented ()
+      (* Single-line comment *)
+      assert_equal [INT; IDENT "x"; SEMI]
+        (tokens_of_string "int x; // This is a single-line comment");
+  
+      (* Multi-line comment *)
+      assert_equal [INT; IDENT "y"; SEMI]
+        (tokens_of_string "int y; /* This is a \n multi-line comment */");
+  
+      (* Mixed comments and code *)
+      assert_equal [FLOAT; IDENT "z"; EQ; FLOAT_LITERAL 3.14; SEMI]
+        (tokens_of_string "float z = 3.14; // Assigning a value");
       
     let test_lexer_errors _ =
       assert_raises (Failure "Unexpected character at Line 1, column 1: Unexpected character")
@@ -68,7 +81,7 @@ module Lexer_tests =
     (* Convert an S-expression string to a Syntax_node.prog *)
     let prog_of_sexp sexp_str =
       let sexp = Sexp.of_string sexp_str in
-      Cocaml.Syntax_node.prog_of_sexp sexp
+      Syntax_node.prog_of_sexp sexp
   
 
     let test_parse_c_to_ast _ =
@@ -107,7 +120,6 @@ module Translator_tests =
         X.Int ,
         (X.Ident "main"),
         [
-          (X.Int, (X.Ident "argc"))
         ],
         X.Block ([
         ], _pos),
@@ -116,7 +128,7 @@ module Translator_tests =
     ]
     let first_test _ =
       M.generate_llvm_ir program |> ignore;
-      M.print_module_to_file "../../../test/test_result.ll";
+      M.print_module_to_file "../../../test/test.ll";
 
       assert_equal 1 1
 
