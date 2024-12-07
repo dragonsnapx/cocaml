@@ -13,5 +13,7 @@ module type TranslateFile =
 
       val parse_stmt : S.stmt -> L.llvalue -> L.llvalue
 
-      val parse_line : S.t -> L.llvalue
+      val generate_llvm_ir : S.prog -> L.llvalue list
+
+      val print_module_to_file : string -> unit
     end

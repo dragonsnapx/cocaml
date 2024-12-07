@@ -79,7 +79,4 @@ type decl =
   | StructDecl of ident * decl list * position                                (* Example: Struct Pair {int x; int y};*)
 
 type prog = Prog of decl list 
-  
-type t =
-	| Decl of decl
-	| Stmt of stmt
+

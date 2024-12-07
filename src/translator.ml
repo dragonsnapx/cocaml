@@ -137,9 +137,10 @@ struct
       end
     | UnOp (un_op, e, _) -> failwith "TODO"
 
-  let parse_decl (decl: S.decl) (scoped_fn: L.llvalue): L.llvalue =
-    match decl with
-    | VarDecl (vartype, ident, expr, position) ->
+  let parse_decl (decl: S.decl) (scoped_fn: L.llvalue option): L.llvalue =
+    (* Local Variable *)
+    match decl, scoped_fn with
+    | VarDecl (vartype, ident, expr, position), Some fn ->
       begin
         let lltype = vartype_to_llvartype vartype in
         let llname = ident_to_string ident in
@@ -150,7 +151,7 @@ struct
           if (S.compare_vartype value_type vartype) = 0 then
             begin
               Hashtbl.set variables ~key:ident ~data:{ DefinedVar.value = alloca; ltp = lltype; tp = vartype };
-              let parsed_val = parse_expr value scoped_fn in
+              let parsed_val = parse_expr value fn in
               L.build_store parsed_val alloca builder
             end
           else 
@@ -160,21 +161,27 @@ struct
         (* No variable initialization*)
         | None -> alloca
       end
-    | FuncDecl (vartype, ident, params, stmt, _) ->
+    (* Global variable *)
+    | VarDecl (vartype, ident, expr, position), None -> begin
+        match expr with
+        | Some v -> L.declare_global ll_int_t (ident_to_string ident) this_module
+        | None -> failwith "Translation Error: Global variable must be initialized"
+      end
+    | FuncDecl (vartype, ident, params, stmt, _), _ ->
       params
       |> List.map ~f:(fun el -> 
           el |> fst |> vartype_to_llvartype
         )
       |> Array.of_list
       |> declare_function ident (vartype_to_llvartype vartype)
-    | Typedef (from_vartype, to_vartype, position) ->
+    | Typedef (from_vartype, to_vartype, position), _ ->
       begin
         match from_vartype with
         | Pointer _ | Void -> failwith "Translation Error: Cannot typecast pointer or void." 
         | Custom custom  -> failwith "TODO"
         | v -> failwith "TODO"
       end
-    | StructDecl (_, _, _) -> failwith "TODO"
+    | StructDecl (_, _, _), _ -> failwith "TODO"
 
   let rec parse_stmt (stmt: S.stmt) (scoped_fn: L.llvalue): L.llvalue =
     match stmt with
@@ -203,13 +210,12 @@ struct
     | Continue _ -> failwith "TODO"
     | DoWhile (stmt, expr, _) -> failwith "TODO"
 
-  let parse_line (line : S.t) (scoped_fn : L.llvalue) =
-    match line with
-    | S.Decl d -> parse_decl d scoped_fn
-    | S.Stmt s -> parse_stmt s scoped_fn
-
   (** Takes a list of statements, outputs LLVM IR code *)
-  let rec generate_llvm_ir (ls: S.t list) (scoped_fn: L.llvalue)
-    = List.map ls ~f:(fun el -> parse_line el scoped_fn)
+  let rec generate_llvm_ir (prog: S.prog): L.llvalue list =
+    match prog with
+    | Prog ls -> List.map ls ~f:(fun el -> parse_decl el None)
+    
+  let print_module_to_file (to_file: string) : unit =
+    L.print_module to_file this_module
 
 end
