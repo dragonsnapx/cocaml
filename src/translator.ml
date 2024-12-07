@@ -137,7 +137,7 @@ struct
       end
     | UnOp (un_op, e, _) -> failwith "TODO"
 
-  let parse_decl (decl: S.decl) (scoped_fn: L.llvalue): unit =
+  let parse_decl (decl: S.decl) (scoped_fn: L.llvalue): L.llvalue =
     match decl with
     | VarDecl (vartype, ident, expr, position) ->
       begin
@@ -147,13 +147,18 @@ struct
         match expr with
         | Some value -> begin
           let value_type = expr_to_vartype value in
-          if S.compare_vartype value_type vartype then
-            L.build_store (parse_expr value scoped_fn) alloca builder |> ignore_llvalue
+          if (S.compare_vartype value_type vartype) = 0 then
+            begin
+              Hashtbl.set variables ~key:ident ~data:{ DefinedVar.value = alloca; ltp = lltype; tp = vartype };
+              let parsed_val = parse_expr value scoped_fn in
+              L.build_store parsed_val alloca builder
+            end
           else 
             failwith @@ "Translation Error: Cannot assign value to variable " ^ llname
           end
-        | None -> ();
-        Hashtbl.set variables ~key:ident ~data:{ DefinedVar.value = alloca; ltp = lltype; tp = vartype }
+
+        (* No variable initialization*)
+        | None -> alloca
       end
     | FuncDecl (vartype, ident, params, stmt, _) ->
       params
@@ -161,21 +166,17 @@ struct
           el |> fst |> vartype_to_llvartype
         )
       |> Array.of_list
-      |> declare_function ident (vartype_to_llvartype vartype) 
-      |> ignore_llvalue
+      |> declare_function ident (vartype_to_llvartype vartype)
     | Typedef (from_vartype, to_vartype, position) ->
       begin
         match from_vartype with
         | Pointer _ | Void -> failwith "Translation Error: Cannot typecast pointer or void." 
-        | Custom custom  -> ()
-        | v -> ()
+        | Custom custom  -> failwith "TODO"
+        | v -> failwith "TODO"
       end
-    | StructDecl (_, _, _) -> ()
+    | StructDecl (_, _, _) -> failwith "TODO"
 
-  let parse_stmt_block (stmts: S.stmt list) (scoped_fn: L.llvalue): unit =
-    
-
-  let parse_stmt (stmt: S.stmt) (scoped_fn: L.llvalue): L.llvalue =
+  let rec parse_stmt (stmt: S.stmt) (scoped_fn: L.llvalue): L.llvalue =
     match stmt with
     | Return (expr, _) -> L.build_ret (parse_expr expr scoped_fn) builder
     | If (expr, stmt, stmt_body, _) -> failwith "TODO"
@@ -187,28 +188,28 @@ struct
       L.position_at_end condition_block builder;
       let break_end = L.build_cond_br condition while_block end_block builder in
       L.position_at_end while_block builder;
-      failwith "TODO"
+      parse_stmt stmt scoped_fn |> ignore_llvalue;
+      L.position_at_end end_block builder;
+      break_end
     end
     | For (expr1, expr2, expr3, stmt_body, _) -> failwith "TODO"
-    | ExprStmt (expr, _) -> failwith "TODO"
-    | Block (stmt_body_ls, _) -> failwith "TODO"
+    | ExprStmt (expr, _) -> parse_expr expr scoped_fn
+    | Block (stmt_body_ls, _) -> 
+      List.iter stmt_body_ls ~f:(fun el -> parse_stmt el scoped_fn |> ignore_llvalue);
+      (* Block has null return by itself *)
+      L.const_null (L.void_type context)
     | Switch (expr, cases, _) -> failwith "TODO"
     | Break _ -> failwith "TODO"
     | Continue _ -> failwith "TODO"
     | DoWhile (stmt, expr, _) -> failwith "TODO"
 
+  let parse_line (line : S.t) (scoped_fn : L.llvalue) =
+    match line with
+    | S.Decl d -> parse_decl d scoped_fn
+    | S.Stmt s -> parse_stmt s scoped_fn
+
   (** Takes a list of statements, outputs LLVM IR code *)
-  let rec parse (statements: S.t list): string list =
-    let parse_line (statement : S.t) : string =
-      match statement with
-      | S.Decl d -> ""
-      | S.Stmt s -> ""
-    in
-    let rec aux (ls: S.t list) (agg: string list) : string list =
-      match ls with
-      | [] -> agg
-      | x :: xs -> (parse_line x) :: (aux xs agg)
-    in
-    List.rev @@ aux statements []
+  let rec generate_llvm_ir (ls: S.t list) (scoped_fn: L.llvalue)
+    = List.map ls ~f:(fun el -> parse_line el scoped_fn)
 
 end

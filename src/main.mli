@@ -7,7 +7,7 @@
 val compile : string -> (string * string) list -> unit
 
 (** Convert C code into C AST Tree *)
-val parse_c_to_ast : string -> Syntax_node.t list
+(* val parse_c_to_ast : string -> Syntax_node.t list *)
 
 (** Compile LLVM code using the LLVM backend, return based on success or failure *)
 val compile_llvm : string -> bool

@@ -14,5 +14,6 @@
 (executable
  (name main)                     
  (modules main)                   
- (libraries cocaml core))      
+ (libraries cocaml core)
+)      
 
