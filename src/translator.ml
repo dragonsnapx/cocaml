@@ -161,57 +161,59 @@ struct
     | Continue _ -> failwith "TODO"
     | DoWhile (stmt, expr, _) -> failwith "TODO"
 
+  let parse_decl (decl: S.decl) (scoped_fn: L.llvalue option): L.llvalue =
+    (* Local Variable *)
+    match decl, scoped_fn with
+    | VarDecl (vartype, ident, expr, position), Some fn ->
+      begin
+        let lltype = vartype_to_llvartype vartype in
+        let llname = ident_to_string ident in
+        let alloca = L.build_alloca lltype llname builder in
+        match expr with
+        | Some value -> begin
+          let value_type = expr_to_vartype value in
+          if (S.compare_vartype value_type vartype) = 0 then
+            begin
+              Hashtbl.set variables ~key:ident ~data:{ DefinedVar.value = alloca; ltp = lltype; tp = vartype };
+              let parsed_val = parse_expr value fn in
+              L.build_store parsed_val alloca builder
+            end
+          else 
+            failwith @@ "Translation Error: Cannot assign value to variable " ^ llname
+          end
+  
+        (* No variable initialization*)
+        | None -> alloca
+      end
+
+    (* Global variable *)
+    | VarDecl (vartype, ident, expr, position), None -> begin
+        match expr with
+        | Some v -> L.declare_global ll_int_t (ident_to_string ident) this_module
+        | None -> failwith "Translation Error: Global variable must be initialized"
+      end
+    | FuncDecl (vartype, ident, params, stmt, _), _ ->
+      params
+      |> List.map ~f:(fun el -> 
+          el |> fst |> vartype_to_llvartype
+      )
+      |> Array.of_list
+      |> declare_function ident (vartype_to_llvartype vartype)
+    | Typedef (from_vartype, to_vartype, position), _ ->
+      begin
+        match from_vartype with
+        | Pointer _ | Void -> failwith "Translation Error: Cannot typecast pointer or void." 
+        | Custom custom  -> failwith "TODO"
+        | v -> failwith "TODO"
+      end
+    | StructDecl (_, _, _), _ -> failwith "TODO"
+
   (** Takes a list of statements, outputs LLVM IR code *)
   let rec generate_llvm_ir (prog: S.prog): L.llvalue list =
+    (* Main function here *)
     match prog with
-    | Prog ls -> List.map ls ~f:(fun el -> parse_decl el None)
-
-    let parse_decl (decl: S.decl) (scoped_fn: L.llvalue option): L.llvalue =
-      (* Local Variable *)
-      match decl, scoped_fn with
-      | VarDecl (vartype, ident, expr, position), Some fn ->
-        begin
-          let lltype = vartype_to_llvartype vartype in
-          let llname = ident_to_string ident in
-          let alloca = L.build_alloca lltype llname builder in
-          match expr with
-          | Some value -> begin
-            let value_type = expr_to_vartype value in
-            if (S.compare_vartype value_type vartype) = 0 then
-              begin
-                Hashtbl.set variables ~key:ident ~data:{ DefinedVar.value = alloca; ltp = lltype; tp = vartype };
-                let parsed_val = parse_expr value fn in
-                L.build_store parsed_val alloca builder
-              end
-            else 
-              failwith @@ "Translation Error: Cannot assign value to variable " ^ llname
-            end
+      | Prog ls -> List.map ls ~f:(fun el -> parse_decl el None)
   
-          (* No variable initialization*)
-          | None -> alloca
-        end
-      (* Global variable *)
-      | VarDecl (vartype, ident, expr, position), None -> begin
-          match expr with
-          | Some v -> L.declare_global ll_int_t (ident_to_string ident) this_module
-          | None -> failwith "Translation Error: Global variable must be initialized"
-        end
-      | FuncDecl (vartype, ident, params, stmt, _), _ ->
-        params
-        |> List.map ~f:(fun el -> 
-            el |> fst |> vartype_to_llvartype
-          )
-        |> Array.of_list
-        |> declare_function ident (vartype_to_llvartype vartype)
-      | Typedef (from_vartype, to_vartype, position), _ ->
-        begin
-          match from_vartype with
-          | Pointer _ | Void -> failwith "Translation Error: Cannot typecast pointer or void." 
-          | Custom custom  -> failwith "TODO"
-          | v -> failwith "TODO"
-        end
-      | StructDecl (_, _, _), _ -> failwith "TODO"
-    
   let print_module_to_file (to_file: string) : unit =
     L.print_module to_file this_module
 

@@ -51,7 +51,7 @@ module Lexer_tests =
   
       (* Mixed comments and code *)
       assert_equal [FLOAT; IDENT "z"; EQ; FLOAT_LITERAL 3.14; SEMI]
-        (tokens_of_string "float z = 3.14; // Assigning a value");
+        (tokens_of_string "float z = 3.14; // Assigning a value")
       
     let test_lexer_errors _ =
       assert_raises (Failure "Unexpected character at Line 1, column 1: Unexpected character")
