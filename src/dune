@@ -13,7 +13,7 @@
 
 (executable
  (name main)                     
- (modules main)                   
+ (modules main)                
  (libraries cocaml core)
 )      
 

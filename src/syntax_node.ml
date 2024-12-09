@@ -81,4 +81,4 @@ type decl =
   | Typedef of vartype * vartype * position                                   
   | StructDecl of ident * decl list * position                               
   
-type prog = Prog of decl list 
+type prog = Prog of decl list

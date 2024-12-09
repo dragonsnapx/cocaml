@@ -44,15 +44,6 @@ rule token = parse
   | digit+ '.' digit+ { FLOAT_LITERAL (float_of_string (Lexing.lexeme lexbuf)) }
   | '\'' [^'\''] '\'' { CHAR_LITERAL (Lexing.lexeme lexbuf).[1] }   
   | identifier     { IDENT (Lexing.lexeme lexbuf) }
-  | "("            { LPAREN }
-  | ")"            { RPAREN }
-  | "{"            { LBRACE }
-  | "}"            { RBRACE }
-  | "+"            { PLUS }
-  | "-"            { MINUS }
-  | "*"            { STAR }
-  | "/"            { SLASH }
-  | "%"            { PERCENT }
   | "=="           { EQUAL }
   | "!="           { NOT_EQUAL }
   | "<"            { LESS_THAN }
@@ -61,6 +52,18 @@ rule token = parse
   | ">="           { GREATER_EQUAL }
   | "&&"           { AND }
   | "||"           { OR }
+  | "!"            { NOT }
+  | "&"            { AMPERSAND }
+  | "("            { LPAREN }
+  | ")"            { RPAREN }
+  | "{"            { LBRACE }
+  | "}"            { RBRACE }
+  | ';'            { SEMI }
+  | "+"            { PLUS }
+  | "-"            { MINUS }
+  | "*"            { STAR }
+  | "/"            { SLASH }
+  | "%"            { PERCENT }
   | "!"            { NOT }
   | "&"            { AMPERSAND }
   | "|"            { BIT_OR }

@@ -78,5 +78,5 @@ type decl =
   | Typedef of vartype * vartype * position                                   (* Example: typedef int Integer *)
   | StructDecl of ident * decl list * position                                (* Example: Struct Pair {int x; int y};*)
 
-type prog = Prog of decl list 
+type prog = Prog of decl list
 
