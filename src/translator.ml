@@ -164,7 +164,7 @@ struct
   let parse_decl (decl: S.decl) (scoped_fn: L.llvalue option): L.llvalue =
     (* Local Variable *)
     match decl, scoped_fn with
-    | VarDecl (vartype, ident, expr, position), Some fn ->
+    | LocalVarDecl (vartype, ident, expr, position), Some fn ->
       begin
         let lltype = vartype_to_llvartype vartype in
         let llname = ident_to_string ident in
@@ -187,7 +187,7 @@ struct
       end
 
     (* Global variable *)
-    | VarDecl (vartype, ident, expr, position), None -> begin
+    | GlobalVarDecl (vartype, ident, expr, position), None -> begin
         match expr with
         | Some v -> L.declare_global ll_int_t (ident_to_string ident) this_module
         | None -> failwith "Translation Error: Global variable must be initialized"

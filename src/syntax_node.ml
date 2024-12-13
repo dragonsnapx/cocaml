@@ -13,6 +13,8 @@ let with_position start_pos end_pos f =
 
 type ident = Ident of string [@@deriving compare]
 
+type is_static = Is_static of bool
+
 type vartype =
   | Int
   | Float
@@ -70,13 +72,14 @@ type stmt =
   | Break of position
   | Continue of position
   | DoWhile of stmt * expr * position
-
+  | LocalVarDecl of is_static * vartype * ident * expr option * position                   
+  
 and case =
 	| Case of expr * stmt list * position
 	| Default of stmt list * position
 	
 type decl =
-  | VarDecl of vartype * ident * expr option * position                       
+  | GlobalVarDecl of is_static * vartype * ident * expr option * position                      
   | FuncDecl of vartype * ident * (vartype * ident) list * stmt * position    
   | Typedef of vartype * vartype * position                                   
   | StructDecl of ident * decl list * position                               

@@ -9,6 +9,9 @@ val with_position : int -> int -> (position -> 'a) -> 'a
 (* Identifier type for variable, function, and user-defined type names *)
 type ident = Ident of string [@@deriving compare]
 
+(* Type annotation for whether a variable is static *)
+type is_static = Is_static of bool
+
 (* Type annotations for variables and function return types *)
 type vartype =
   | Int
@@ -67,13 +70,14 @@ type stmt =
   | Break of position
   | Continue of position
   | DoWhile of stmt * expr * position
+  | LocalVarDecl of is_static * vartype * ident * expr option * position                   
   
 and case =
 	| Case of expr * stmt list * position
 	| Default of stmt list * position
 	
 type decl =
-  | VarDecl of vartype * ident * expr option * position                       (* Example: int x = 10 *)
+  | GlobalVarDecl of is_static * vartype * ident * expr option * position     (* Example: int x = 10 *)
   | FuncDecl of vartype * ident * (vartype * ident) list * stmt * position    (* Example: int f(int a, int b) {} *)
   | Typedef of vartype * vartype * position                                   (* Example: typedef int Integer *)
   | StructDecl of ident * decl list * position                                (* Example: Struct Pair {int x; int y};*)
