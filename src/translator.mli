@@ -16,4 +16,6 @@ module TranslateFile :
         val generate_llvm_ir : S.prog -> L.llvalue list
 
         val print_module_to_file : string -> unit
+
+        val string_of_file : string
     end

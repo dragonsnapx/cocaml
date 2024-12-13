@@ -86,13 +86,27 @@ struct
     | _ -> failwith "Translation Error: extract_expr_value must be called on literal"
 
 
-  let declare_function (label: S.ident) (returns: L.lltype) (formals: L.lltype array) =
-    let func_type = L.function_type returns formals in
-      match L.lookup_function (ident_to_string label) this_module with
-      | None -> L.declare_function (ident_to_string label) func_type this_module
-      | Some _ -> failwith "Translation Error: Function already exists"
+  let rec declare_function (label: S.ident) (returns: L.lltype) (params: (S.vartype * S.ident) list) (body: S.stmt) =
+    let params_ll_value = 
+      List.map params ~f:(fun elt -> elt |> fst |> vartype_to_llvartype) 
+      |> Array.of_list 
+    in
+    let func_type = L.function_type returns params_ll_value in
+    let fn = match L.lookup_function (ident_to_string label) this_module with
+    | None -> L.declare_function (ident_to_string label) func_type this_module
+    | Some _ -> failwith "Translation Error: Function already exists" in
+    (* let builder = L.builder_at_end context (L.entry_block fn) in
+    let param_map = List.mapi params
+      ~f:(fun i ident -> 
+          L.set_value_name (ident |> snd |> ident_to_string) (L.param fn i)
+      ) in *)
+    print_endline "Parsing statement_body";
+    let _ = parse_stmt body fn in
+    print_endline "Done";
+    fn 
+    
 
-  let rec parse_expr (expr: S.expr) (scoped_fn: L.llvalue): L.llvalue =
+  and parse_expr (expr: S.expr) (scoped_fn: L.llvalue): L.llvalue =
     match expr with
     | IntLiteral (i, _) -> L.const_int ll_int_t i
     | FloatLiteral (f, _) -> L.const_float ll_float_t f
@@ -134,7 +148,7 @@ struct
       end
     | UnOp (un_op, e, _) -> failwith "TODO"
 
-  let rec parse_stmt (stmt: S.stmt) (scoped_fn: L.llvalue): L.llvalue =
+  and parse_stmt (stmt: S.stmt) (scoped_fn: L.llvalue): L.llvalue =
     match stmt with
     | Return (expr, _) -> L.build_ret (parse_expr expr scoped_fn) builder
     | If (expr, stmt, stmt_body, _) -> failwith "TODO"
@@ -193,12 +207,7 @@ struct
         | None -> failwith "Translation Error: Global variable must be initialized"
       end
     | FuncDecl (vartype, ident, params, stmt, _), _ ->
-      params
-      |> List.map ~f:(fun el -> 
-          el |> fst |> vartype_to_llvartype
-      )
-      |> Array.of_list
-      |> declare_function ident (vartype_to_llvartype vartype)
+      declare_function ident (vartype_to_llvartype vartype) params stmt
     | Typedef (from_vartype, to_vartype, position), _ ->
       begin
         match from_vartype with
@@ -216,5 +225,8 @@ struct
   
   let print_module_to_file (to_file: string) : unit =
     L.print_module to_file this_module
+
+  let string_of_file : string =
+    L.string_of_llmodule this_module
 
 end
