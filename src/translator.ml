@@ -37,6 +37,8 @@ struct
   let ll_double_t = L.double_type context
   let ll_float_t = L.float_type context
 
+  let nil_return_type = L.const_null (L.i32_type context)
+
   let ignore_llvalue (v : L.llvalue) : unit =
     ()
 
@@ -85,6 +87,13 @@ struct
       end
     | _ -> failwith "Translation Error: extract_expr_value must be called on literal"
 
+  let func_entry_builder (): L.llbuilder =
+    L.insertion_block builder
+    |> L.block_parent
+    |> L.entry_block
+    |> L.instr_begin
+    |> L.builder_at context
+
 
   let rec declare_function (label: S.ident) (returns: L.lltype) (params: (S.vartype * S.ident) list) (body: S.stmt) =
     let params_ll_value = 
@@ -92,19 +101,20 @@ struct
       |> Array.of_list 
     in
     let func_type = L.function_type returns params_ll_value in
-    let fn = match L.lookup_function (ident_to_string label) this_module with
-    | None -> L.declare_function (ident_to_string label) func_type this_module
+    let fn_name = ident_to_string label in
+    let fn = match L.lookup_function fn_name this_module with
+    | None -> L.declare_function fn_name func_type this_module
     | Some _ -> failwith "Translation Error: Function already exists" in
-    (* let builder = L.builder_at_end context (L.entry_block fn) in
-    let param_map = List.mapi params
-      ~f:(fun i ident -> 
-          L.set_value_name (ident |> snd |> ident_to_string) (L.param fn i)
-      ) in *)
-    print_endline "Parsing statement_body";
-    let _ = parse_stmt body fn in
-    print_endline "Done";
-    fn 
-    
+    let entry_block = L.append_block context "entry" fn in
+    L.position_at_end entry_block builder;
+    List.iteri params ~f:(fun i (tp, id) -> 
+      let ll_param = L.param fn i in
+      L.set_value_name (ident_to_string id) ll_param;
+      let ll_param_alloc = L.build_alloca (vartype_to_llvartype tp) (ident_to_string id) builder in
+      L.build_store ll_param ll_param_alloc builder |> ignore_llvalue;
+    );
+    parse_stmt body fn |> ignore;
+    fn
 
   and parse_expr (expr: S.expr) (scoped_fn: L.llvalue): L.llvalue =
     match expr with
@@ -167,55 +177,60 @@ struct
     | For (expr1, expr2, expr3, stmt_body, _) -> failwith "TODO"
     | ExprStmt (expr, _) -> parse_expr expr scoped_fn
     | Block (stmt_body_ls, _) -> 
-      List.iter stmt_body_ls ~f:(fun el -> parse_stmt el scoped_fn |> ignore_llvalue);
-      (* Block has null return by itself *)
-      L.const_null (L.void_type context)
+      let current_block = L.insertion_block builder in
+      let scoped_block =
+        List.fold_left stmt_body_ls ~init:current_block ~f:(fun _ stmt ->
+          parse_stmt stmt scoped_fn |> ignore_llvalue;
+          L.insertion_block builder
+        )
+      in
+      L.position_at_end scoped_block builder;
+      (* I wanted to return a null type, but that causes an error *)
+      nil_return_type
     | Switch (expr, cases, _) -> failwith "TODO"
     | Break _ -> failwith "TODO"
     | Continue _ -> failwith "TODO"
     | DoWhile (stmt, expr, _) -> failwith "TODO"
+    | LocalVarDecl (is_static, vartype, ident, expr, position) ->
+      let lltype = vartype_to_llvartype vartype in
+      let llname = ident_to_string ident in
+      let alloca = 
+        L.insertion_block builder 
+        |> L.block_parent 
+        |> L.entry_block
+        |> L.instr_begin
+        |> L.builder_at context
+        |> L.build_alloca lltype llname
+      in
+      (*Hashtbl maybe?*)
+      begin
+        match expr with
+        | Some expr_ ->
+          let value = parse_expr expr_ scoped_fn in
+          L.build_store value alloca builder |> ignore_llvalue
+        | None -> ()
+      end;
+      nil_return_type
 
   let parse_decl (decl: S.decl) (scoped_fn: L.llvalue option): L.llvalue =
     (* Local Variable *)
-    match decl, scoped_fn with
-    | LocalVarDecl (vartype, ident, expr, position), Some fn ->
-      begin
-        let lltype = vartype_to_llvartype vartype in
-        let llname = ident_to_string ident in
-        let alloca = L.build_alloca lltype llname builder in
-        match expr with
-        | Some value -> begin
-          let value_type = expr_to_vartype value in
-          if (S.compare_vartype value_type vartype) = 0 then
-            begin
-              Hashtbl.set variables ~key:ident ~data:{ DefinedVar.value = alloca; ltp = lltype; tp = vartype };
-              let parsed_val = parse_expr value fn in
-              L.build_store parsed_val alloca builder
-            end
-          else 
-            failwith @@ "Translation Error: Cannot assign value to variable " ^ llname
-          end
-  
-        (* No variable initialization*)
-        | None -> alloca
-      end
-
+    match decl with
     (* Global variable *)
-    | GlobalVarDecl (vartype, ident, expr, position), None -> begin
+    | GlobalVarDecl (is_static, vartype, ident, expr, position) -> begin
         match expr with
         | Some v -> L.declare_global ll_int_t (ident_to_string ident) this_module
         | None -> failwith "Translation Error: Global variable must be initialized"
       end
-    | FuncDecl (vartype, ident, params, stmt, _), _ ->
+    | FuncDecl (vartype, ident, params, stmt, _) ->
       declare_function ident (vartype_to_llvartype vartype) params stmt
-    | Typedef (from_vartype, to_vartype, position), _ ->
+    | Typedef (from_vartype, to_vartype, position) ->
       begin
         match from_vartype with
         | Pointer _ | Void -> failwith "Translation Error: Cannot typecast pointer or void." 
         | Custom custom  -> failwith "TODO"
         | v -> failwith "TODO"
       end
-    | StructDecl (_, _, _), _ -> failwith "TODO"
+    | StructDecl (_, _, _) -> failwith "TODO"
 
   (** Takes a list of statements, outputs LLVM IR code *)
   let rec generate_llvm_ir (prog: S.prog): L.llvalue list =

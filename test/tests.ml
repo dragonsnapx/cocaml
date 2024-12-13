@@ -114,8 +114,8 @@ module Translator_tests =
 
     let ignore _ = ()
 
-    (* let return_expr: X.stmt = X.Return ((X.IntLiteral (3, _pos)), _pos) *)
-    let assign_expr: X.stmt = X.ExprStmt (X.Var( (X.Ident ("ok")), _pos), _pos)
+    let return_expr: X.stmt = X.Return ((X.IntLiteral (0, _pos)), _pos)
+    let decl_assign_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "x"), None, _pos)
 
     let program : X.prog = X.Prog [
       X.FuncDecl (
@@ -125,7 +125,8 @@ module Translator_tests =
           X.Int, X.Ident "argc"
         ],
         X.Block ([
-          assign_expr
+          decl_assign_expr;
+          return_expr;
         ], _pos),
         _pos
       )
