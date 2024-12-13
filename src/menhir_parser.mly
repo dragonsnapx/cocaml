@@ -15,7 +15,7 @@
 
 (* Tokens List *)
 %token BREAK CASE CHAR CONTINUE DEFAULT DOUBLE ELSE
-%token FLOAT FOR IF INT LONG RETURN STRUCT SWITCH TYPEDEF VOID DO WHILE
+%token FLOAT FOR IF INT LONG RETURN STRUCT SWITCH TYPEDEF STATIC VOID DO WHILE
 %token <int> INT_LITERAL
 %token <float> FLOAT_LITERAL
 %token <char> CHAR_LITERAL
@@ -51,11 +51,17 @@ decl_list:
   | decl_list decl { $1 @ [$2] } 
 
 decl:
+  | STATIC type_spec IDENT SEMI {
+      Syntax_node.GlobalVarDecl (Syntax_node.Is_static true, $2, Syntax_node.Ident $3, None, make_position $startpos $endpos)
+  }
+  | STATIC type_spec IDENT ASSIGN expr SEMI {
+      Syntax_node.GlobalVarDecl (Syntax_node.Is_static true, $2, Syntax_node.Ident $3, Some $5, make_position $startpos $endpos)
+    }
   | type_spec IDENT SEMI {
-      Syntax_node.VarDecl ($1, Syntax_node.Ident $2, None, make_position $startpos $endpos)
+      Syntax_node.GlobalVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, None, make_position $startpos $endpos)
     }
   | type_spec IDENT ASSIGN expr SEMI {
-      Syntax_node.VarDecl ($1, Syntax_node.Ident $2, Some $4, make_position $startpos $endpos)
+      Syntax_node.GlobalVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, Some $4, make_position $startpos $endpos)
     }
   | type_spec IDENT LPAREN param_list RPAREN stmt_block {
       Syntax_node.FuncDecl ($1, Syntax_node.Ident $2, $4, $6, make_position $startpos $endpos)
@@ -68,7 +74,7 @@ decl:
     }
   | error SEMI {
       Printf.eprintf "Syntax error in declaration.\n";
-      Syntax_node.VarDecl (Syntax_node.Void, Syntax_node.Ident "error", None, make_position $startpos $endpos)
+      Syntax_node.GlobalVarDecl (Syntax_node.Void, Syntax_node.Ident "error", None, make_position $startpos $endpos)
     }
 
 (* Function parameters *)
@@ -130,6 +136,18 @@ stmt:
     }
   | CONTINUE SEMI {
       Syntax_node.Continue (make_position $startpos $endpos)
+    }
+  | type_spec IDENT SEMI {
+      Syntax_node.LocalVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, None, make_position $startpos $endpos)
+    }
+  | type_spec IDENT ASSIGN expr SEMI {
+      Syntax_node.LocalVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, Some $4, make_position $startpos $endpos)
+    }
+  | STATIC type_spec IDENT SEMI {
+      Syntax_node.LocalVarDecl (Syntax_node.Is_static true, $2, Syntax_node.Ident $3, None, make_position $startpos $endpos)
+    }
+  | STATIC type_spec IDENT ASSIGN expr SEMI {
+      Syntax_node.LocalVarDecl (Syntax_node.Is_static true, $2, Syntax_node.Ident $3, Some $5, make_position $startpos $endpos)
     }
 
 (* Cases for switch statements *)

@@ -27,6 +27,7 @@ rule token = parse
   | "char"         { CHAR }
   | "long"         { LONG }
   | "double"       { DOUBLE }
+  | "static"       { STATIC }
   | "void"         { VOID }
   | "return"       { RETURN }
   | "if"           { IF }
