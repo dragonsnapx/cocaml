@@ -116,6 +116,11 @@ module Translator_tests =
 
     let return_expr: X.stmt = X.Return ((X.IntLiteral (0, _pos)), _pos)
     let decl_assign_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "x"), None, _pos)
+    let decl_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "y"), (Some (X.IntLiteral (3, _pos))), _pos)
+
+    let bin_op_plus: X.expr = X.BinOp (X.Plus, (X.IntLiteral (3, _pos)), (X.IntLiteral (4, _pos)), _pos)
+    let decl_calc_int_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "z"), Some bin_op_plus, _pos)
+    
 
     let program : X.prog = X.Prog [
       X.FuncDecl (
@@ -125,7 +130,9 @@ module Translator_tests =
           X.Int, X.Ident "argc"
         ],
         X.Block ([
+          decl_expr;
           decl_assign_expr;
+          decl_calc_int_expr;
           return_expr;
         ], _pos),
         _pos

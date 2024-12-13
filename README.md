@@ -21,7 +21,13 @@ Given a set of "tokens" from `Menhir_parser`, the Lexer performs regex matching 
 Given a stream of tokens passed from the Lexer, the Parser checks this stream against a set of "grammar rules", and uses these to build an AST, according to the `Syntax_node` interface. This is the end of the front-end of the compiler -- the back-end simply receives an AST, which it interacts with via `Syntax_node`. At the top-level, our AST is a list of "declarations"
 
 ### Translator
-Translates AST tree to LLVM IR (example from test file available at test/test_result.ll) and returns any errors or syntactical issues via semantic analysis. The task of semantic analysis is made easier by directly using the OCaml `llvm` library, which allows us to interact with the translated code directly. 
+Translates AST tree to LLVM IR (example from test file available at test/test_result.ll) and returns any errors or syntactical issues via semantic analysis. The task of semantic analysis is made easier by directly using the OCaml `llvm` library, which allows us to interact with the translated code directly.
+
+Some Notes: (Will have to be organized before submission)
+
+- LLVM calls `alloca` before all instruction sets - this means that even if a local variable appears much later down the line, it still is "allocated" at the beginning of the code block. 
+- LLVM bindings with OCaml has a lot of "magic" behind; even though it is still very functional, it has elements such as the `module`, a mutable variable that acts as a file that is used to push instruction sets, which can be manipulated to output to an output stream or a file.
+- It also does a lot of optimizations *pre* translation and *post* translation & compilation. For instance, declaring `int x = 3 + 4` generates the LLVM IR equivalent of `int x = 7`, and skips generating 
 
 ### Runner
 Runs LLVM IR, generating an executable. This step will use LLVM itself, and has not been something we've worked on yet. 
