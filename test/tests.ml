@@ -39,21 +39,39 @@ module Lexer_tests =
         (tokens_of_string "if (a == b) { return 1; }")
 
     let test_lexer_comments _ = 
-      (* Single-line comment *)
+      (* Single-line comments *)
       assert_equal [INT; IDENT "x"; SEMI]
         (tokens_of_string "int x; // This is a single-line comment");
+
+      assert_equal [FLOAT; IDENT "z"; ASSIGN; FLOAT_LITERAL 3.14; SEMI; INT; IDENT "y"; SEMI]
+        (tokens_of_string "float z = 3.14; // Assigning a value \n int y;");
   
       (* Multi-line comment *)
       assert_equal [INT; IDENT "y"; SEMI]
         (tokens_of_string "int y; /* This is a \n multi-line comment */");
-  
-      (* Mixed comments and code *)
-      assert_equal [FLOAT; IDENT "z"; ASSIGN; FLOAT_LITERAL 3.14; SEMI]
-        (tokens_of_string "float z = 3.14; // Assigning a value")
+
+      (* Nested comments *)
+      assert_equal [INT; IDENT "y"; SEMI; IDENT "y"; ASSIGN; INT_LITERAL 5; SEMI]
+        (tokens_of_string "int y; /* This is a multi-line comment with a * \n // */ \n y = 5;")
+
+    let test_lexer_character_errors _ =
+      assert_raises (Failure "Line 1, column 1: Unexpected character")
+        (fun () -> tokens_of_string "$");
+
+      assert_raises (Failure "Line 1, column 6: Unexpected character")
+        (fun () -> tokens_of_string "int y#;");
       
-    let test_lexer_errors _ =
-      assert_raises (Failure "Unexpected character at Line 1, column 1: Unexpected character")
-        (fun () -> tokens_of_string "$")
+      assert_raises (Failure "Line 2, column 1: Unexpected character")
+        (fun () -> tokens_of_string "int x;\n&")
+
+    let test_lexer_unclosed_errors _ = 
+      (* Unclosed comment *)
+      assert_raises (Failure "Line 2, column 1: Unclosed comment")
+        (fun () -> tokens_of_string "int y; /* This is an unclosed comment\n");
+      
+      (* Unclosed string*)
+      assert_raises (Failure "Line 1, column 17: Unclosed string literal")
+        (fun () -> tokens_of_string "char* str = \"This is an unclosed string;\n")
 
     let series =
       "Lexer Tests" >::: [
@@ -62,7 +80,8 @@ module Lexer_tests =
         "Keyword Tests" >:: test_lexer_keywords;
         "Token Sequence Tests" >:: test_lexer_sequences;
         "Comment Tests" >:: test_lexer_comments;
-        "Error Tests" >:: test_lexer_errors
+        "Character Error Tests" >:: test_lexer_character_errors;
+        "Unclosed Error Tests" >:: test_lexer_unclosed_errors
       ]
   end
 
