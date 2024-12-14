@@ -30,7 +30,8 @@
             | '0'  -> "\000" 
             | _ -> raise_error "Invalid escape sequence" lexbuf
           in
-          parse_string (decoded :: acc) lexbuf
+        Lexing.new_line lexbuf;
+        parse_string (decoded :: acc) lexbuf
       | _ ->
         (* Case 3: Valid character *)
         let char = Lexing.lexeme lexbuf in

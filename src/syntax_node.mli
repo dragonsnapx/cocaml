@@ -98,7 +98,7 @@ and case =
 type decl =
   | GlobalVarDecl of is_static * vartype * ident * expr option * position     (* Example: int x = 10 *)
   | FuncDecl of vartype * ident * (vartype * ident) list * stmt * position    (* Example: int f(int a, int b) {} *)
-  | TypedefDecl of vartype * vartype * position                               (* Example: typedef int Integer *)
+  | TypedefDecl of vartype * ident * position                                 (* Example: typedef int Integer *)
   | StructDecl of ident * decl list * position                                (* Example: Struct Pair {int x; int y};*)
 
 type prog = Prog of decl list

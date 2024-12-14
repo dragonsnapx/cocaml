@@ -100,7 +100,7 @@ and case =
 type decl =
   | GlobalVarDecl of is_static * vartype * ident * expr option * position                      
   | FuncDecl of vartype * ident * (vartype * ident) list * stmt * position    
-  | TypedefDecl of vartype * vartype * position                                   
+  | TypedefDecl of vartype * ident * position                                   
   | StructDecl of ident * decl list * position                               
   
 type prog = Prog of decl list

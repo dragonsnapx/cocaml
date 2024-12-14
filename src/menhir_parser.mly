@@ -37,23 +37,19 @@
 (* Main type from Syntax_node *)
 %type <Syntax_node.prog> program
 
-(* Other types *)
+(* Other types -- we currently have some types without corresponding types in Syntax_node *)
 %type <Syntax_node.decl list> decl_list
 %type <Syntax_node.decl> decl
 %type <Syntax_node.expr> expr
 %type <Syntax_node.expr list> expr_list
-%type <Syntax_node.binop> bin_ops
-%type <Syntax_node.unop> prefix_un_ops
-%type <Syntax_node.unop> postfix_un_ops
+%type <Syntax_node.bin_op> bin_ops
+%type <Syntax_node.prefix_un_op> prefix_un_ops
+%type <Syntax_node.postfix_un_op> postfix_un_ops
 %type <Syntax_node.stmt> stmt
 %type <Syntax_node.stmt list> stmt_list
-%type <Syntax_node.stmt_block> stmt_block
 %type <Syntax_node.case> case
 %type <Syntax_node.case list> case_list
-%type <Syntax_node.param list> param_list
-%type <Syntax_node.param list> param_list_non_empty
-%type <Syntax_node.type_spec> type_spec
-%type <Syntax_node.arg list> arg_list
+%type <Syntax_node.vartype> type_spec
 
 (* Entry point *)
 %start program
@@ -93,7 +89,7 @@ decl:
       Syntax_node.FuncDecl ($1, Syntax_node.Ident $2, $4, $6, make_position $startpos $endpos)
     }
   | TYPEDEF type_spec IDENT SEMI {
-      Syntax_node.Typedef ($2, Syntax_node.Custom (Syntax_node.Ident $3), make_position $startpos $endpos)
+      Syntax_node.TypedefDecl ($2, Syntax_node.Ident $3, make_position $startpos $endpos)
     }
   | STRUCT IDENT LBRACE decl_list RBRACE SEMI {
       Syntax_node.StructDecl (Syntax_node.Ident $2, $4, make_position $startpos $endpos)
