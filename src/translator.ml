@@ -55,7 +55,7 @@ struct
     | Pointer subtp -> L.pointer_type context
     | Char -> ll_char_t
     | Long -> ll_long_t
-    | Custom custom -> 
+    | Typedef custom -> 
       try
         (Hashtbl.find_exn types custom)
       with Not_found_s _ ->
@@ -73,7 +73,8 @@ struct
     | BinOp (bin_op, expr1, expr2, _) -> S.Int
     | Assign (ident, expr, _) -> failwith "TODO"
     | Call (expr, param, _) -> failwith "TODO"
-    | UnOp (un_op, expr, _) -> failwith "TODO"
+    | PrefixUnOp (prefix_un_op, expr, _) -> failwith "TODO"
+    | PostfixUnOp (expr, postfix_un_op, _) -> failwith "TODO"
 
   let extract_expr_value (expr: S.expr): L.llvalue =
     match expr with
@@ -156,7 +157,8 @@ struct
         | Some fn -> L.build_call fn.fntp fn.fn args "fun_call" builder
         | None -> failwith @@ "Cannot find function call to function: " ^ (ident_to_string id)
       end
-    | UnOp (un_op, e, _) -> failwith "TODO"
+    | PrefixUnOp (prefix_un_op, e, _) -> failwith "TODO"
+    | PostfixUnOp (e, postfix_un_op, _) -> failwith "TODO"
 
   and parse_stmt (stmt: S.stmt) (scoped_fn: L.llvalue): L.llvalue =
     match stmt with
@@ -227,7 +229,7 @@ struct
       begin
         match from_vartype with
         | Pointer _ | Void -> failwith "Translation Error: Cannot typecast pointer or void." 
-        | Custom custom  -> failwith "TODO"
+        | Typedef custom  -> failwith "TODO"
         | v -> failwith "TODO"
       end
     | StructDecl (_, _, _) -> failwith "TODO"

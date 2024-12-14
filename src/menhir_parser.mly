@@ -4,14 +4,15 @@
     Syntax_node.create_position startpos.pos_cnum endpos.pos_cnum
 %}
 
-(* Tokens with precedence and associativity *)
-%left OR
-%left AND
+(* Tokens with precedence and non-associativity *)
+%left OR AND
 %left EQUAL NOT_EQUAL
 %left LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
-%left PLUS MINUS
-%left STAR SLASH
-%right ASSIGN
+%left LEFT_SHIFT RIGHT_SHIFT
+%left PLUS MINUS STAR SLASH PERCENT
+%right ASSIGN PLUS_EQUAL MINUS_EQUAL STAR_EQUAL SLASH_EQUAL PERCENT_EQUAL
+%nonassoc DOT ARROW
+%nonassoc INCREMENT DECREMENT
 
 (* Tokens List *)
 %token BREAK CASE CHAR CONTINUE DEFAULT DOUBLE ELSE
@@ -19,17 +20,42 @@
 %token <int> INT_LITERAL
 %token <float> FLOAT_LITERAL
 %token <char> CHAR_LITERAL
+%token <string> STRING_LITERAL
 %token <string> IDENT
 %token LPAREN RPAREN LBRACE RBRACE SEMI COMMA ASSIGN COLON
 %token PLUS MINUS STAR SLASH PERCENT
 %token EQUAL NOT_EQUAL LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
+%token LEFT_SHIFT RIGHT_SHIFT
+%token PLUS_EQUAL MINUS_EQUAL STAR_EQUAL SLASH_EQUAL PERCENT_EQUAL
+%token DOT ARROW LBRACKET RBRACKET
 %token AND OR NOT
 %token BIT_OR BIT_XOR BIT_NOT
 %token AMPERSAND
+%token INCREMENT DECREMENT
 %token EOF
 
-(* Entry point for program parsing *)
+(* Main type from Syntax_node *)
 %type <Syntax_node.prog> program
+
+(* Other types *)
+%type <Syntax_node.decl list> decl_list
+%type <Syntax_node.decl> decl
+%type <Syntax_node.expr> expr
+%type <Syntax_node.expr list> expr_list
+%type <Syntax_node.binop> bin_ops
+%type <Syntax_node.unop> prefix_un_ops
+%type <Syntax_node.unop> postfix_un_ops
+%type <Syntax_node.stmt> stmt
+%type <Syntax_node.stmt list> stmt_list
+%type <Syntax_node.stmt_block> stmt_block
+%type <Syntax_node.case> case
+%type <Syntax_node.case list> case_list
+%type <Syntax_node.param list> param_list
+%type <Syntax_node.param list> param_list_non_empty
+%type <Syntax_node.type_spec> type_spec
+%type <Syntax_node.arg list> arg_list
+
+(* Entry point *)
 %start program
 
 %%
@@ -180,6 +206,18 @@ expr:
   | CHAR_LITERAL {
       Syntax_node.CharLiteral ($1, make_position $startpos $endpos)
     }
+  | STRING_LITERAL {
+      Syntax_node.StringLiteral ($1, make_position $startpos $endpos)
+    }
+  | expr DOT IDENT {
+      Syntax_node.MemberAccess ($1, Syntax_node.Ident $3, make_position $startpos $endpos)
+    }
+  | expr ARROW IDENT {
+      Syntax_node.PointerMemberAccess ($1, Syntax_node.Ident $3, make_position $startpos $endpos)
+    }
+  | expr LBRACKET expr RBRACKET {
+      Syntax_node.ArrayAccess ($1, $3, make_position $startpos $endpos)
+    }
   | IDENT {
       Syntax_node.Var (Syntax_node.Ident $1, make_position $startpos $endpos)
     }
@@ -192,8 +230,11 @@ expr:
   | expr bin_ops expr {
       Syntax_node.BinOp ($2, $1, $3, make_position $startpos $endpos)
     }
-  | un_ops expr {
-      Syntax_node.UnOp ($1, $2, make_position $startpos $endpos)
+  | prefix_un_ops expr {
+      Syntax_node.PrefixUnOp ($1, $2, make_position $startpos $endpos)
+    }
+  | expr postfix_un_ops {
+      Syntax_node.PostfixUnOp ($1, $2, make_position $startpos $endpos)
     }
   | LPAREN expr RPAREN {
       $2
@@ -229,7 +270,8 @@ type_spec:
   | DOUBLE { Syntax_node.Double }
   | LONG { Syntax_node.Long }
   | VOID { Syntax_node.Void }
-  | IDENT { Syntax_node.Custom (Syntax_node.Ident $1) }
+  | STRUCT IDENT { Syntax_node.Struct (Syntax_node.Ident $2) }
+  | IDENT { Syntax_node.Typedef (Syntax_node.Ident $1) }
 
 bin_ops:
   | PLUS { Syntax_node.Plus }
@@ -237,6 +279,8 @@ bin_ops:
   | STAR { Syntax_node.Times }
   | SLASH { Syntax_node.Divide }
   | PERCENT { Syntax_node.Modulo }
+  | LEFT_SHIFT { Syntax_node.LeftShift }
+  | RIGHT_SHIFT { Syntax_node.RightShift }
   | EQUAL { Syntax_node.Equal }
   | NOT_EQUAL { Syntax_node.NotEqual }
   | LESS_THAN { Syntax_node.Less }
@@ -245,15 +289,26 @@ bin_ops:
   | GREATER_EQUAL { Syntax_node.GreaterEqual }
   | AND { Syntax_node.LogicalAnd }
   | OR { Syntax_node.LogicalOr }
+  | PLUS_EQUAL { Syntax_node.PlusAssign }
+  | MINUS_EQUAL { Syntax_node.MinusAssign }
+  | STAR_EQUAL { Syntax_node.TimesAssign }
+  | SLASH_EQUAL { Syntax_node.DivideAssign }
+  | PERCENT_EQUAL { Syntax_node.ModuloAssign }
   | AMPERSAND { Syntax_node.BitwiseAnd }
   | BIT_OR { Syntax_node.BitwiseOr }
   | BIT_XOR { Syntax_node.BitwiseXor }
 
-un_ops:
+prefix_un_ops:
   | PLUS { Syntax_node.Positive}
   | MINUS { Syntax_node.Negative }
   | NOT { Syntax_node.LogicalNot }
   | STAR { Syntax_node.Dereference }
   | AMPERSAND { Syntax_node.Address }
   | BIT_NOT { Syntax_node.BitwiseNot }
+  | INCREMENT { Syntax_node.PrefixIncrement }
+  | DECREMENT { Syntax_node.PrefixDecrement }
+
+postfix_un_ops:
+  | INCREMENT { Syntax_node.PostfixIncrement }
+  | DECREMENT { Syntax_node.PostfixDecrement }
 

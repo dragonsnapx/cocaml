@@ -20,7 +20,8 @@ type vartype =
   | Long
   | Double
   | Void
-  | Custom of ident
+  | Struct of ident
+  | Typedef of ident
   | Pointer of vartype [@@deriving compare]
 
 type bin_op =
@@ -28,7 +29,9 @@ type bin_op =
   | Minus          
   | Times         
   | Divide         
-  | Modulo         
+  | Modulo    
+  | LeftShift
+  | RightShift     
   | Equal          
   | NotEqual       
   | Less           
@@ -37,27 +40,43 @@ type bin_op =
   | GreaterEqual   
   | LogicalAnd     
   | LogicalOr     
+  | PlusAssign
+  | MinusAssign
+  | TimesAssign
+  | DivideAssign
+  | ModuloAssign
   | BitwiseAnd    
   | BitwiseOr     
-  | BitwiseXor   
-  
-type un_op =
+  | BitwiseXor
+
+type prefix_un_op =
   | Positive
   | Negative         
   | LogicalNot   
   | BitwiseNot 
   | Address        
   | Dereference    
+  | PrefixIncrement
+  | PrefixDecrement
+
+type postfix_un_op = 
+  | PostfixIncrement
+  | PostfixDecrement
 
 type expr =
   | IntLiteral of int * position
   | FloatLiteral of float * position
   | CharLiteral of char * position
+  | StringLiteral of string * position
+  | MemberAccess of expr * ident * position
+  | PointerMemberAccess of expr * ident * position
+  | ArrayAccess of expr * expr * position
   | Var of ident * position
   | BinOp of bin_op * expr * expr * position
   | Assign of ident * expr * position
   | Call of ident * expr list * position
-  | UnOp of un_op * expr * position
+  | PrefixUnOp of prefix_un_op * expr * position
+  | PostfixUnOp of expr * postfix_un_op * position
 
 type stmt =
   | Return of expr * position
@@ -79,7 +98,7 @@ and case =
 type decl =
   | GlobalVarDecl of is_static * vartype * ident * expr option * position     (* Example: int x = 10 *)
   | FuncDecl of vartype * ident * (vartype * ident) list * stmt * position    (* Example: int f(int a, int b) {} *)
-  | Typedef of vartype * vartype * position                                   (* Example: typedef int Integer *)
+  | TypedefDecl of vartype * vartype * position                               (* Example: typedef int Integer *)
   | StructDecl of ident * decl list * position                                (* Example: Struct Pair {int x; int y};*)
 
 type prog = Prog of decl list

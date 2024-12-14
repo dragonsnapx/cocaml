@@ -11,28 +11,30 @@
     let col = pos.pos_cnum - pos.pos_bol + 1 in
     raise (LexerError (Printf.sprintf "Line %d, column %d: %s" line col msg, pos))
 
-  (* Helper function for parsing strings and verifying they are closed *)
-  let parse_string lexbuf =
-    let rec parse_string_aux () =
-      match%sedlex lexbuf with
-      | '"' -> ()                                           (* Properly closed string *)
-      | '\\' -> (match%sedlex lexbuf with
-                 | _ -> parse_string_aux ())                (* Handle escape sequences *)
-      | eof -> raise_error "Unclosed string literal" lexbuf
-      | _ -> parse_string_aux ()                            (* Consume valid characters *)
-    in
-    parse_string_aux ();
-    STRING_LITERAL (Lexing.lexeme lexbuf)
-
-  (* Helper function for parsing multi-line comments and verifying they are closed *)
-  let parse_multi_line_comment lexbuf =
-    let rec parse_multi_line_comment_aux () =
-      match%sedlex lexbuf with
-      | "*/" -> ()                                          (* Properly closed comment *)
-      | eof -> raise_error "Unclosed comment" lexbuf
-      | _ -> parse_multi_line_comment_aux ()                (* Consume valid characters *)
-    in
-    parse_multi_line_comment_aux ()
+  (* Helper function for accumulating a string's content, throwing any needed errors *)
+  let rec parse_string acc lexbuf =
+    match Lexing.lexeme lexbuf with
+      | "\"" -> 
+        (* Case 1: Closing quote *)
+        STRING_LITERAL (String.concat "" (List.rev acc))
+      | "\\" -> 
+        (* Case 2: Escape character *)
+        let next_char = Lexing.lexeme_char lexbuf 1 in
+        let decoded =
+          match next_char with
+            | '"'  -> "\""  
+            | '\\' -> "\\"   
+            | 'n'  -> "\n"   
+            | 't'  -> "\t"  
+            | 'r'  -> "\r"   
+            | '0'  -> "\000" 
+            | _ -> raise_error "Invalid escape sequence" lexbuf
+          in
+          parse_string (decoded :: acc) lexbuf
+      | _ ->
+        (* Case 3: Valid character *)
+        let char = Lexing.lexeme lexbuf in
+        parse_string (char :: acc) lexbuf
 }
 
 (* Lexer rules *)
@@ -41,17 +43,16 @@ let letter = ['a'-'z' 'A'-'Z']
 let identifier = letter (letter | digit | '_')*
 let whitespace = [' ' '\t' '\r']
 let newline = '\n'
-let string_content = '"' ([^'"' '\\'] | '\\' .)* '"'
+let valid_char = ['\032'-'\033' '\035'-'\091' '\093'-'\126']
+let escaped_char = '\\' ['"' '\\' 'n' 't' 'r' '0']
 let comment_single = "//" [^'\n']* ('\n' | eof)
-let comment_multi = "/*" ([^'*'] | ('*' [^'/']))* "*/"
-
 
 rule token = parse
   (* Strings *)
-  | '"' { parse_string lexbuf }
+  | '"' { parse_string [] lexbuf } 
 
   (* Multi-Line Comments *)
-  | "/*" { parse_multi_line_comment lexbuf; token lexbuf }
+  | "/*" { multi_line_comment lexbuf; token lexbuf }
 
   (* Keywords and identifiers *)
   | "int"          { INT }
@@ -85,6 +86,15 @@ rule token = parse
   | "<="           { LESS_EQUAL }
   | ">"            { GREATER_THAN }
   | ">="           { GREATER_EQUAL }
+  | "+="           { PLUS_EQUAL }
+  | "-="           { MINUS_EQUAL }
+  | "*="           { STAR_EQUAL }
+  | "/="           { SLASH_EQUAL }
+  | "%="           { PERCENT_EQUAL }
+  | "++"           { INCREMENT }
+  | "--"           { DECREMENT }
+  | "<<"           { LEFT_SHIFT }
+  | ">>"           { RIGHT_SHIFT } 
   | "&&"           { AND }
   | "||"           { OR }
   | "!"            { NOT }
@@ -110,3 +120,10 @@ rule token = parse
   | comment_single { token lexbuf } (* Ignore single-line comments *)
   | eof            { EOF }          (* End of file *)
   | _              { raise_error "Unexpected character" lexbuf }
+
+and multi_line_comment = parse
+  | "*/" { () }                                                 (* Properly closed comment *)
+  | eof  { raise_error "Unclosed multi-line comment" lexbuf }
+  | [^'*']+ { multi_line_comment lexbuf }                       (* Consume non-* characters *)
+  | '*' [^'/'] { multi_line_comment lexbuf }                    (* Consume '*' not followed by '/' *)
+  | _ { multi_line_comment lexbuf }                             (* Consume remaining characters *)
