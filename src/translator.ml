@@ -2,6 +2,7 @@
 open Core
 module L = Llvm
 module S = Syntax_node
+module F = Stack_frame.StackFrame
 
 module DefinedFunc = struct
   type t = {
@@ -9,14 +10,6 @@ module DefinedFunc = struct
     fntp: L.lltype;
     returns: L.llvalue option;
     returns_to: L.llbasicblock;
-  }
-end
-
-module DefinedVar = struct
-  type t = {
-    tp: S.vartype;
-    ltp: L.lltype;
-    value: L.llvalue;
   }
 end
 
@@ -28,8 +21,9 @@ struct
 
   let htbl_functions: (S.ident, DefinedFunc.t) Hashtbl.t = Hashtbl.Poly.create ()
   let htbl_types: (S.ident, L.lltype) Hashtbl.t = Hashtbl.Poly.create ()
-  let htbl_variables: (S.ident, DefinedVar.t) Hashtbl.t = Hashtbl.Poly.create ()
   let htbl_structs: (S.ident, (S.ident * S.vartype) list) Hashtbl.t = Hashtbl.Poly.create ()
+
+  let var_env = F.create()
 
   let ll_char_t = L.i8_type context
   let ll_int_t = L.i32_type context
@@ -101,7 +95,7 @@ struct
       | _ -> failwith "Translation Error: Array access on non-pointer type"
       end
     | Var (ident, _) -> begin
-      try (Hashtbl.find_exn htbl_variables ident).tp
+      try (F.lookup_variable var_env ident).tp
         with Not_found_s _ -> failwith @@ "Translation Error: Cannot infer type of " ^ (ident_to_string ident)
       end
     | BinOp (bin_op, expr1, expr2, _) -> S.Int
@@ -135,7 +129,7 @@ struct
     | CharLiteral (c, _) -> L.const_int (L.i8_type context) (int_of_char c)
     | Var (id, _) -> 
       begin
-        try (Hashtbl.find_exn htbl_variables id).value
+        try (F.lookup_variable var_env id).value
         with Not_found_s _  -> failwith @@ "Translation Error: Cannot extract value from " ^ (ident_to_string id)
       end
     | _ -> failwith "Translation Error: extract_expr_value must be called on literal"
@@ -149,6 +143,7 @@ struct
 
 
   let rec declare_function (label: S.ident) (returns: L.lltype) (params: (S.vartype * S.ident) list) (body: S.stmt) =
+    F.enter_block var_env;
     let params_ll_value = 
       List.map params ~f:(fun elt -> elt |> fst |> vartype_to_llvartype) 
       |> Array.of_list 
@@ -165,8 +160,11 @@ struct
       L.set_value_name (ident_to_string id) ll_param;
       let ll_param_alloc = L.build_alloca (vartype_to_llvartype tp) (ident_to_string id) builder in
       L.build_store ll_param ll_param_alloc builder |> ignore_llvalue;
+      F.declare_variable var_env id { tp = tp; ltp = vartype_to_llvartype tp; value = ll_param_alloc }
     );
     parse_stmt body fn |> ignore;
+    F.exit_block var_env;
+    Hashtbl.set htbl_functions ~key:label ~data:{ fn = fn; fntp = returns; returns = None; returns_to = entry_block };
     fn
 
   and parse_expr (expr: S.expr) (scoped_fn: L.llvalue): L.llvalue =
@@ -179,7 +177,7 @@ struct
     | PointerMemberAccess (pt, id, _) -> failwith "TODO"
     | ArrayAccess (ex1, ex2, _) -> failwith "TODO"
     | Var (v, _) ->
-      let ll_v = (Hashtbl.find_exn htbl_variables v) in
+      let ll_v = (F.lookup_variable var_env v) in
       L.build_load (ll_v.ltp) (ll_v.value) (ident_to_string v) builder
     | BinOp (bin_op, expr1, expr2, _) -> begin
         let lhs = parse_expr expr1 scoped_fn in
@@ -210,14 +208,19 @@ struct
         | ModuloAssign -> failwith "TODO"
       end
     | Assign (id, e, _) -> 
-        let ll_v = (Hashtbl.find_exn htbl_variables id) in
+        let ll_v = (F.lookup_variable var_env id) in
         L.build_store ll_v.value (parse_expr e scoped_fn) builder
     | Call (id, exprs, _) -> begin
         let args = exprs
         |> List.map ~f:(fun el -> parse_expr el scoped_fn)
         |> Array.of_list in
         match Hashtbl.find htbl_functions id with
-        | Some fn -> L.build_call fn.fntp fn.fn args "fun_call" builder
+        | Some fn -> 
+          print_endline "building call...";
+          let s = L.build_call fn.fntp fn.fn args "fun_call" builder in
+          print_endline "done.";
+          s
+        (* TODO: Forward declaration? *)
         | None -> failwith @@ "Cannot find function call to function: " ^ (ident_to_string id)
       end
     | PrefixUnOp (prefix_un_op, e, _) -> failwith "TODO"
@@ -287,6 +290,7 @@ struct
       nil_return_type
     | ExprStmt (expr, _) -> parse_expr expr scoped_fn
     | Block (stmt_body_ls, _) -> 
+
       let current_block = L.insertion_block builder in
       let scoped_block =
         List.fold_left stmt_body_ls ~init:current_block ~f:(fun _ stmt ->
@@ -349,7 +353,7 @@ struct
         |> L.builder_at context
         |> L.build_alloca lltype llname
       in
-      (*Hashtbl maybe?*)
+      F.declare_variable var_env ident { tp = vartype; ltp = lltype; value = alloca };
       begin
         match expr with
         | Some expr_ ->
@@ -360,9 +364,7 @@ struct
       nil_return_type
 
   let parse_decl (decl: S.decl) (scoped_fn: L.llvalue option): L.llvalue =
-    (* Local Variable *)
     match decl with
-    (* Global variable *)
     | GlobalVarDecl (is_static, vartype, ident, expr, position) -> begin
         match expr with
         | Some v -> L.declare_global ll_int_t (ident_to_string ident) this_module
@@ -377,7 +379,7 @@ struct
         | Typedef custom  -> begin
           match Hashtbl.find htbl_types custom with
           | Some tp -> failwith "TODO"
-          | None -> failwith "Translation Error: Could not typecast from unknown type to another"
+          | None -> failwith "Translation Error: Could not typecast from unknown type to another."
         end
         | v -> failwith "TODO"
       end

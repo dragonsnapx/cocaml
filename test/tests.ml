@@ -139,9 +139,27 @@ module Translator_tests =
 
     let bin_op_plus: X.expr = X.BinOp (X.Plus, (X.IntLiteral (3, _pos)), (X.IntLiteral (4, _pos)), _pos)
     let decl_calc_int_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "z"), Some bin_op_plus, _pos)
+
+    let square_expr: X.expr = X.BinOp (X.Plus, (X.Var ((X.Ident "x"), _pos)), (X.Var ((X.Ident "x"), _pos)), _pos)
+    let make_square: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "y"), (Some square_expr), _pos)
+    let return_square: X.stmt = X.Return ((X.Var ((X.Ident "y"), _pos)), _pos)
     
+    let square_call: X.expr = X.Call ((X.Ident "square"), [X.IntLiteral (3, _pos)], _pos)
+    (* let return_after_call_square_fn_expr: X.stmt = X.Return (square_call, _pos) *)
 
     let program : X.prog = X.Prog [
+      X.FuncDecl (
+        X.Int,
+        (X.Ident "square"),
+        [
+          X.Int, X.Ident "x"
+        ],
+        X.Block ([
+          make_square;
+          return_square
+        ], _pos),
+        _pos
+      );
       X.FuncDecl (
         X.Int,
         (X.Ident "main"),
@@ -152,6 +170,7 @@ module Translator_tests =
           decl_expr;
           decl_assign_expr;
           decl_calc_int_expr;
+          X.ExprStmt (square_call, _pos);
           return_expr;
         ], _pos),
         _pos

@@ -3,6 +3,8 @@ module S = Syntax_node
 
 module TranslateFile :
     sig
+        val ident_to_string : S.ident -> string
+
         val expr_to_vartype : S.expr -> S.vartype
 
         val extract_expr_value : S.expr -> L.llvalue
