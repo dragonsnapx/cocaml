@@ -38,6 +38,17 @@ module Lexer_tests =
       assert_equal [IF; LPAREN; IDENT "a"; EQUAL; IDENT "b"; RPAREN; LBRACE; RETURN; INT_LITERAL 1; SEMI; RBRACE]
         (tokens_of_string "if (a == b) { return 1; }")
 
+    
+    let test_lexer_character_errors _ =
+      assert_raises (Failure "Line 1, column 1: Unexpected character")
+        (fun () -> tokens_of_string "$");
+
+      assert_raises (Failure "Line 1, column 6: Unexpected character")
+        (fun () -> tokens_of_string "int y#;");
+      
+      assert_raises (Failure "Line 2, column 1: Unexpected character")
+        (fun () -> tokens_of_string "int x;\n@")
+
     let test_lexer_comments _ = 
       (* Single-line comments *)
       assert_equal [INT; IDENT "x"; SEMI]
@@ -52,36 +63,50 @@ module Lexer_tests =
 
       (* Nested comments *)
       assert_equal [INT; IDENT "y"; SEMI; IDENT "y"; ASSIGN; INT_LITERAL 5; SEMI]
-        (tokens_of_string "int y; /* This is a multi-line comment with a * \n // */ \n y = 5;")
+        (tokens_of_string "int y; /* This is a multi-line comment with a * \n // */ \n y = 5;");
 
-    let test_lexer_character_errors _ =
-      assert_raises (Failure "Line 1, column 1: Unexpected character")
-        (fun () -> tokens_of_string "$");
+      (* Ensure strings inside a comment aren't read *)
+      assert_equal [INT; IDENT "y"; SEMI]
+        (tokens_of_string "int y; /* \"This string should be ignored\" */")
 
-      assert_raises (Failure "Line 1, column 6: Unexpected character")
-        (fun () -> tokens_of_string "int y#;");
-      
-      assert_raises (Failure "Line 2, column 1: Unexpected character")
-        (fun () -> tokens_of_string "int x;\n&")
-
-    let test_lexer_unclosed_errors _ = 
-      (* Unclosed comment *)
-      assert_raises (Failure "Line 2, column 1: Unclosed comment")
+    let test_lexer_unclosed_comment_errors _ = 
+      assert_raises (Failure "Line 1, column 8: Unclosed comment")
         (fun () -> tokens_of_string "int y; /* This is an unclosed comment\n");
-      
-      (* Unclosed string*)
-      assert_raises (Failure "Line 1, column 17: Unclosed string literal")
-        (fun () -> tokens_of_string "char* str = \"This is an unclosed string;\n")
 
+      assert_raises (Failure "Line 2, column 1: Unclosed comment")
+        (fun () -> tokens_of_string "float x; \n/* Multi-line comment without closure")
+
+    let test_lexer_strings _ = 
+      assert_equal [CHAR; STAR; IDENT "str"; ASSIGN; STRING_LITERAL "Hello, World!"; SEMI]
+        (tokens_of_string "char* str = \"Hello, World!\";");
+  
+      assert_equal [CHAR; STAR; IDENT "str"; ASSIGN; STRING_LITERAL "Line1\nLine2"; SEMI]
+        (tokens_of_string "char* str = \"Line1\\nLine2\";");
+  
+      assert_equal [CHAR; STAR; IDENT "str"; ASSIGN; STRING_LITERAL "This\tTabbed"; SEMI]
+        (tokens_of_string "char* str = \"This\\tTabbed\";")
+
+      
+    let test_lexer_unclosed_string_errors _ = 
+      assert_raises (Failure "Line 1, column 13: Unclosed string literal")
+        (fun () -> tokens_of_string "char* str = \"This is an unclosed string;\n");
+
+      assert_raises (Failure "Line 1, column 13: Unclosed string literal")
+        (fun () -> tokens_of_string "char* str = \"Unclosed without newline");
+      
+      assert_raises (Failure "Line 2, column 17: Unclosed string literal")
+        (fun () -> tokens_of_string "char* str;\nchar* another = \"Unclosed;\n")
     let series =
       "Lexer Tests" >::: [
         "Single Token Tests" >:: test_lexer_single_token;
         "Literal Tests" >:: test_lexer_literals;
         "Keyword Tests" >:: test_lexer_keywords;
         "Token Sequence Tests" >:: test_lexer_sequences;
-        "Comment Tests" >:: test_lexer_comments;
         "Character Error Tests" >:: test_lexer_character_errors;
-        "Unclosed Error Tests" >:: test_lexer_unclosed_errors
+        "Comment Tests" >:: test_lexer_comments;
+        "Unclosed Comments Tests" >:: test_lexer_unclosed_comment_errors;
+        "String Tests" >:: test_lexer_strings;
+        "Unclosed String Tests" >:: test_lexer_unclosed_string_errors
       ]
   end
 

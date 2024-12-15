@@ -5,37 +5,10 @@
   exception LexerError of string * Lexing.position
 
   (* Helper function to raise a detailed lexer error *)
-  let raise_error msg lexbuf =
-    let pos = lexbuf.lex_start_p in
+  let raise_error msg pos =
     let line = pos.pos_lnum in
     let col = pos.pos_cnum - pos.pos_bol + 1 in
     raise (LexerError (Printf.sprintf "Line %d, column %d: %s" line col msg, pos))
-
-  (* Helper function for accumulating a string's content, throwing any needed errors *)
-  let rec parse_string acc lexbuf =
-    match Lexing.lexeme lexbuf with
-      | "\"" -> 
-        (* Case 1: Closing quote *)
-        STRING_LITERAL (String.concat "" (List.rev acc))
-      | "\\" -> 
-        (* Case 2: Escape character *)
-        let next_char = Lexing.lexeme_char lexbuf 1 in
-        let decoded =
-          match next_char with
-            | '"'  -> "\""  
-            | '\\' -> "\\"   
-            | 'n'  -> "\n"   
-            | 't'  -> "\t"  
-            | 'r'  -> "\r"   
-            | '0'  -> "\000" 
-            | _ -> raise_error "Invalid escape sequence" lexbuf
-          in
-        Lexing.new_line lexbuf;
-        parse_string (decoded :: acc) lexbuf
-      | _ ->
-        (* Case 3: Valid character *)
-        let char = Lexing.lexeme lexbuf in
-        parse_string (char :: acc) lexbuf
 }
 
 (* Lexer rules *)
@@ -50,10 +23,10 @@ let comment_single = "//" [^'\n']* ('\n' | eof)
 
 rule token = parse
   (* Strings *)
-  | '"' { parse_string [] lexbuf } 
+  | '"' { parse_string [] lexbuf.lex_start_p lexbuf } 
 
   (* Multi-Line Comments *)
-  | "/*" { multi_line_comment lexbuf; token lexbuf }
+  | "/*" { parse_multiline_comment lexbuf.lex_start_p lexbuf; token lexbuf }
 
   (* Keywords and identifiers *)
   | "int"          { INT }
@@ -116,15 +89,36 @@ rule token = parse
   | "^"            { BIT_XOR }
   | "~"            { BIT_NOT }
   | "="            { ASSIGN }
-  | whitespace+    { token lexbuf } (* Ignore whitespace *)
-  | newline        { token lexbuf } (* Ignore newlines *)
-  | comment_single { token lexbuf } (* Ignore single-line comments *)
-  | eof            { EOF }          (* End of file *)
-  | _              { raise_error "Unexpected character" lexbuf }
+  | whitespace+    { token lexbuf }                                                          (* Whitespace *)
+  | newline        { Lexing.new_line lexbuf; token lexbuf }                                  (* Newline *)
+  | comment_single { Lexing.new_line lexbuf; token lexbuf }                                  (* Single-line comment *)
+  | eof            { EOF }                                                                   (* End of file *)
+  | _              { raise_error "Unexpected character" lexbuf.lex_start_p }
 
-and multi_line_comment = parse
-  | "*/" { () }                                                 (* Properly closed comment *)
-  | eof  { raise_error "Unclosed multi-line comment" lexbuf }
-  | [^'*']+ { multi_line_comment lexbuf }                       (* Consume non-* characters *)
-  | '*' [^'/'] { multi_line_comment lexbuf }                    (* Consume '*' not followed by '/' *)
-  | _ { multi_line_comment lexbuf }                             (* Consume remaining characters *)
+and parse_string acc start_pos = parse
+  | "\""           { STRING_LITERAL (String.concat "" (List.rev acc)) }
+  | "\\"           { let decoded =
+                      match Lexing.lexeme_char lexbuf 1 with
+                        | '"' -> "\""
+                        | '\\' -> "\\"
+                        | 'n'  -> "\n"   
+                        | 't'  -> "\t" 
+                        | 'r'  -> "\r"   
+                        | '0'  -> "\000" 
+                        | _    -> raise_error "Invalid escape sequence" lexbuf.lex_start_p
+                      in
+                      parse_string (decoded :: acc) start_pos lexbuf
+                   }
+  | eof            { raise_error "Unclosed string literal" start_pos }
+  | _              { let char = Lexing.lexeme lexbuf in
+                     parse_string (char :: acc) start_pos lexbuf
+  }
+
+and parse_multiline_comment start_pos = parse
+  | "*/"           { () }                                                                        (* Properly closed comment *)
+  | eof            { raise_error "Unclosed comment" start_pos}
+  | '\n'           { Lexing.new_line lexbuf; parse_multiline_comment start_pos lexbuf }
+  | [^'*']+        { parse_multiline_comment start_pos lexbuf }                                  (* Consume non-* characters *)
+  | '*' [^'/']     { parse_multiline_comment start_pos lexbuf }                                  (* Consume '*' not followed by '/' *)
+  | _              { parse_multiline_comment start_pos lexbuf }                                  (* Consume remaining characters *)
+
