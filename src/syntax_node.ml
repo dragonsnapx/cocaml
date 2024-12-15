@@ -11,7 +11,7 @@ let with_position start_pos end_pos f =
   let position = create_position start_pos end_pos in
   f position
 
-type ident = Ident of string [@@deriving compare]
+type ident = Ident of string [@@deriving compare, sexp]
 
 type is_static = Is_static of bool
 
@@ -24,7 +24,7 @@ type vartype =
   | Void
   | Struct of ident
   | Typedef of ident
-  | Pointer of vartype [@@deriving compare]
+  | Pointer of vartype [@@deriving compare, sexp]
 
 type bin_op =
   | Plus           
