@@ -1,0 +1,11 @@
+(test
+  (name tests)
+  (modules tests)
+  (libraries
+    core
+    ounit2
+    cocaml
+    cocaml_main
+  )
+  (preprocess (pps ppx_jane))
+  (deps (file ../src/bin/runner.exe) (glob_files_rec ../test/**)))

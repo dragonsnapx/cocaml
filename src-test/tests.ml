@@ -1,21 +1,22 @@
 open Core
 open OUnit2
-open Cocaml.Lexer
-open Cocaml.Menhir_parser
 open Lexing
 
 module Lexer_tests = 
   struct 
+    module L = Cocaml.Lexer
+    open Cocaml.Menhir_parser
+
     (* Helper function to parse an input string and return a list of tokens *)
     let tokens_of_string input =
       let lexbuf = from_string input in
       let rec collect_tokens acc =
-        match token lexbuf with
+        match L.token lexbuf with
         | EOF -> List.rev acc
         | tok -> collect_tokens (tok :: acc)
       in
       try collect_tokens [] with
-        | LexerError (msg, _) -> failwith msg
+        | L.LexerError (msg, _) -> failwith msg
       
     let test_lexer_single_token _ =
       assert_equal [INT] (tokens_of_string "int");
@@ -38,7 +39,6 @@ module Lexer_tests =
       assert_equal [IF; LPAREN; IDENT "a"; EQUAL; IDENT "b"; RPAREN; LBRACE; RETURN; INT_LITERAL 1; SEMI; RBRACE]
         (tokens_of_string "if (a == b) { return 1; }")
 
-    
     let test_lexer_character_errors _ =
       assert_raises (Failure "Line 1, column 1: Unexpected character")
         (fun () -> tokens_of_string "$");
@@ -48,6 +48,7 @@ module Lexer_tests =
       
       assert_raises (Failure "Line 2, column 1: Unexpected character")
         (fun () -> tokens_of_string "int x;\n@")
+
 
     let test_lexer_comments _ = 
       (* Single-line comments *)
@@ -69,12 +70,14 @@ module Lexer_tests =
       assert_equal [INT; IDENT "y"; SEMI]
         (tokens_of_string "int y; /* \"This string should be ignored\" */")
 
+
     let test_lexer_unclosed_comment_errors _ = 
       assert_raises (Failure "Line 1, column 8: Unclosed comment")
         (fun () -> tokens_of_string "int y; /* This is an unclosed comment\n");
 
       assert_raises (Failure "Line 2, column 1: Unclosed comment")
         (fun () -> tokens_of_string "float x; \n/* Multi-line comment without closure")
+
 
     let test_lexer_strings _ = 
       assert_equal [CHAR; STAR; IDENT "str"; ASSIGN; STRING_LITERAL "Hello, World!"; SEMI]
@@ -86,7 +89,7 @@ module Lexer_tests =
       assert_equal [CHAR; STAR; IDENT "str"; ASSIGN; STRING_LITERAL "This\tTabbed"; SEMI]
         (tokens_of_string "char* str = \"This\\tTabbed\";")
 
-      
+
     let test_lexer_unclosed_string_errors _ = 
       assert_raises (Failure "Line 1, column 13: Unclosed string literal")
         (fun () -> tokens_of_string "char* str = \"This is an unclosed string;\n");
@@ -96,6 +99,8 @@ module Lexer_tests =
       
       assert_raises (Failure "Line 2, column 17: Unclosed string literal")
         (fun () -> tokens_of_string "char* str;\nchar* another = \"Unclosed;\n")
+    
+
     let series =
       "Lexer Tests" >::: [
         "Single Token Tests" >:: test_lexer_single_token;
@@ -110,45 +115,46 @@ module Lexer_tests =
       ]
   end
 
-  (*
-  module Parser_tests = struct
-    (* 
-     * Helper functions 
-     * Note: Some of these will likely be used in other test modules, so we will probably extract them 
-     *)
+  module Parser_tests =
+    struct
+      (* 
+      * Helper functions 
+      * Note: Some of these will likely be used in other test modules, so we will probably extract them 
+      *)
 
-    (* Read a file into a string *)
-    let read_file filename =
-      In_channel.read_all filename
-  
-    (* Convert an S-expression string to a Syntax_node.prog *)
-    let prog_of_sexp sexp_str =
-      let sexp = Sexp.of_string sexp_str in
-      Cocaml.Syntax_node.prog_of_sexp sexp
-  
+      module S = Cocaml.Syntax_node
+      module M = Cocaml_main
 
-    let test_parse_c_to_ast _ =
-      let input_code = read_file "simple.c" in
-      let derived_ast = Main.parse_c_to_ast input_code in
-  
-      (* Read in simple_ast.txt as the expected tree *)
-      let expected_ast =
-        read_file "simple_ast_sexp.txt" |> prog_of_sexp
-      in
-  
-      (* Compare the derived tree to the expected tree *)
-      assert_equal
-        ~cmp:Cocaml.Syntax_node.equal_prog
-        ~printer:Cocaml.Syntax_node.show_prog
-        expected_ast
-        derived_ast
+      (* Read a file into a string *)
+      let read_file filename =
+        In_channel.read_all filename
+    
+      (* Convert an S-expression string to a Syntax_node.prog *)
+      let prog_of_sexp sexp_str =
+        let sexp = Sexp.of_string sexp_str in
+        S.prog_of_sexp sexp
+    
+      let test_parse_c_to_ast _ =
+        let input_code = read_file "../test/simple.c" in
+        let derived_ast = M.parse_c_to_ast input_code in
+    
+        (* Read in simple_ast.txt as the expected tree *)
+        let expected_ast =
+          read_file "../test/simple_ast_sexp.txt" |> prog_of_sexp
+        in
+    
+        (* Compare the derived tree to the expected tree *)
+        assert_equal
+          ~cmp:S.equal_prog
+          ~printer:S.show_prog
+          expected_ast
+          derived_ast
 
-    let series =
-      "Parser Tests" >::: [
-        "Test Parse C to AST" >:: test_parse_c_to_ast
-      ]
-  end
-  *)
+      let series =
+        "Parser Tests" >::: [
+          "Test Parse C to AST" >:: test_parse_c_to_ast
+        ]
+    end
 
 module Translator_tests =
   struct
@@ -216,7 +222,8 @@ module Translator_tests =
 let series =
   "Tests" >:::
   [ 
-    Lexer_tests.series (*; Parser_tests.series *)
+    Lexer_tests.series
+  ; Parser_tests.series
   ; Translator_tests.series ]
 
 let () = run_test_tt_main series

@@ -1,20 +1,17 @@
-open Core
-
 type position = {
   pos_start: int; 
   pos_end: int;
-}
+} [@@deriving compare, sexp, equal, show]
 
-let create_position start_pos end_pos = { pos_start = start_pos; pos_end = end_pos }
+val create_position : int -> int -> position
 
-let with_position start_pos end_pos f =
-  let position = create_position start_pos end_pos in
-  f position
+(* Identifier type for variable, function, and user-defined type names *)
+type ident = Ident of string [@@deriving compare, sexp, equal, show]
 
-type ident = Ident of string [@@deriving compare, sexp]
+(* Type annotation for whether a variable is static *)
+type is_static = Is_static of bool [@@deriving compare, sexp, equal, show]
 
-type is_static = Is_static of bool
-
+(* Type annotations for variables and function return types *)
 type vartype =
   | Int
   | Float
@@ -24,7 +21,8 @@ type vartype =
   | Void
   | Struct of ident
   | Typedef of ident
-  | Pointer of vartype [@@deriving compare, sexp]
+  | Pointer of vartype
+[@@deriving compare, sexp, equal, show]
 
 type bin_op =
   | Plus           
@@ -49,8 +47,9 @@ type bin_op =
   | ModuloAssign
   | BitwiseAnd    
   | BitwiseOr     
-  | BitwiseXor   
-  
+  | BitwiseXor
+[@@deriving compare, sexp, equal, show]
+
 type prefix_un_op =
   | Positive
   | Negative         
@@ -60,10 +59,12 @@ type prefix_un_op =
   | Dereference    
   | PrefixIncrement
   | PrefixDecrement
+[@@deriving compare, sexp, equal, show]
 
 type postfix_un_op = 
   | PostfixIncrement
   | PostfixDecrement
+[@@deriving compare, sexp, equal, show]
 
 type expr =
   | IntLiteral of int * position
@@ -79,6 +80,7 @@ type expr =
   | Call of ident * expr list * position
   | PrefixUnOp of prefix_un_op * expr * position
   | PostfixUnOp of expr * postfix_un_op * position
+[@@deriving compare, sexp, equal, show]
 
 type stmt =
   | Return of expr * position
@@ -92,15 +94,19 @@ type stmt =
   | Continue of position
   | DoWhile of stmt * expr * position
   | LocalVarDecl of is_static * vartype * ident * expr option * position                   
-  
+[@@deriving compare, sexp, equal, show]
+
 and case =
 	| Case of expr * stmt list * position
 	| Default of stmt list * position
+[@@deriving compare, sexp, equal, show]
 	
 type decl =
-  | GlobalVarDecl of is_static * vartype * ident * expr option * position                      
-  | FuncDecl of vartype * ident * (vartype * ident) list * stmt * position    
-  | TypedefDecl of vartype * ident * position                                   
-  | StructDecl of ident * decl list * position                               
-  
-type prog = Prog of decl list
+  | GlobalVarDecl of is_static * vartype * ident * expr option * position     (* Example: int x = 10 *)
+  | FuncDecl of vartype * ident * (vartype * ident) list * stmt * position    (* Example: int f(int a, int b) {} *)
+  | TypedefDecl of vartype * ident * position                                 (* Example: typedef int Integer *)
+  | StructDecl of ident * decl list * position                                (* Example: Struct Pair {int x; int y};*)
+[@@deriving compare, sexp, equal, show]
+
+type prog = Prog of decl list [@@deriving compare, sexp, equal, show]
+

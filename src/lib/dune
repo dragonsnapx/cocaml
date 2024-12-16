@@ -9,11 +9,11 @@
  (name cocaml)                   
  (modules syntax_node lexer menhir_parser translator stack_frame)
  (libraries core ppx_jane llvm)
- (preprocess (pps ppx_jane)))
+ (preprocess (pps ppx_deriving.show ppx_jane)))
 
-(executable
- (name main)                     
- (modules main)                
- (libraries cocaml core)
-)      
+(library
+  (name cocaml_main)
+  (modules cocaml_main)
+  (libraries cocaml core)
+)
 
