@@ -17,8 +17,3 @@
   (libraries cocaml core)
 )
 
-(executable
-  (name runner)
-  (modules runner)
-  (libraries cocaml_main core))    
-
