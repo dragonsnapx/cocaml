@@ -215,11 +215,7 @@ struct
         |> List.map ~f:(fun el -> parse_expr el scoped_fn)
         |> Array.of_list in
         match Hashtbl.find htbl_functions id with
-        | Some fn -> 
-          print_endline "building call...";
-          let s = L.build_call fn.fntp fn.fn args "fun_call" builder in
-          print_endline "done.";
-          s
+        | Some fn -> L.build_call fn.fntp fn.fn args "fun_call" builder
         (* TODO: Forward declaration? *)
         | None -> failwith @@ "Cannot find function call to function: " ^ (ident_to_string id)
       end
