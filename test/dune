@@ -5,5 +5,6 @@
     core
     ounit2
     cocaml
+    cocaml_main
   )
   (preprocess (pps ppx_jane)))

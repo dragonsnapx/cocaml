@@ -3,17 +3,13 @@ open Core
 type position = {
   pos_start: int; 
   pos_end: int;
-}
+} [@@deriving compare, sexp, equal, show]
 
 let create_position start_pos end_pos = { pos_start = start_pos; pos_end = end_pos }
 
-let with_position start_pos end_pos f =
-  let position = create_position start_pos end_pos in
-  f position
+type ident = Ident of string [@@deriving compare, sexp, equal, show]
 
-type ident = Ident of string [@@deriving compare, sexp]
-
-type is_static = Is_static of bool
+type is_static = Is_static of bool [@@deriving compare, sexp, equal, show]
 
 type vartype =
   | Int
@@ -24,7 +20,8 @@ type vartype =
   | Void
   | Struct of ident
   | Typedef of ident
-  | Pointer of vartype [@@deriving compare, sexp]
+  | Pointer of vartype
+[@@deriving compare, sexp, equal, show]
 
 type bin_op =
   | Plus           
@@ -49,8 +46,9 @@ type bin_op =
   | ModuloAssign
   | BitwiseAnd    
   | BitwiseOr     
-  | BitwiseXor   
-  
+  | BitwiseXor
+[@@deriving compare, sexp, equal, show]
+
 type prefix_un_op =
   | Positive
   | Negative         
@@ -60,10 +58,12 @@ type prefix_un_op =
   | Dereference    
   | PrefixIncrement
   | PrefixDecrement
+[@@deriving compare, sexp, equal, show]
 
 type postfix_un_op = 
   | PostfixIncrement
   | PostfixDecrement
+[@@deriving compare, sexp, equal, show]
 
 type expr =
   | IntLiteral of int * position
@@ -79,6 +79,7 @@ type expr =
   | Call of ident * expr list * position
   | PrefixUnOp of prefix_un_op * expr * position
   | PostfixUnOp of expr * postfix_un_op * position
+[@@deriving compare, sexp, equal, show]
 
 type stmt =
   | Return of expr * position
@@ -92,15 +93,18 @@ type stmt =
   | Continue of position
   | DoWhile of stmt * expr * position
   | LocalVarDecl of is_static * vartype * ident * expr option * position                   
-  
+[@@deriving compare, sexp, equal, show]
+
 and case =
 	| Case of expr * stmt list * position
 	| Default of stmt list * position
+[@@deriving compare, sexp, equal, show]
 	
 type decl =
-  | GlobalVarDecl of is_static * vartype * ident * expr option * position                      
+  | GlobalVarDecl of is_static * vartype * ident * expr option * position     
   | FuncDecl of vartype * ident * (vartype * ident) list * stmt * position    
-  | TypedefDecl of vartype * ident * position                                   
-  | StructDecl of ident * decl list * position                               
-  
-type prog = Prog of decl list
+  | TypedefDecl of vartype * ident * position                                 
+  | StructDecl of ident * decl list * position                                
+[@@deriving compare, sexp, equal, show]
+
+type prog = Prog of decl list [@@deriving compare, sexp, equal, show]
