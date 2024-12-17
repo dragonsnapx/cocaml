@@ -40,14 +40,17 @@ type bin_op =
   | GreaterEqual   
   | LogicalAnd     
   | LogicalOr     
+  | BitwiseAnd    
+  | BitwiseOr     
+  | BitwiseXor 
   | PlusAssign
   | MinusAssign
   | TimesAssign
   | DivideAssign
   | ModuloAssign
-  | BitwiseAnd    
-  | BitwiseOr     
-  | BitwiseXor
+  | BitwiseAndAssign   
+  | BitwiseOrAssign    
+  | BitwiseXorAssign
 [@@deriving compare, sexp, equal, show]
 
 type prefix_un_op =
@@ -70,6 +73,7 @@ type expr =
   | IntLiteral of int * position
   | FloatLiteral of float * position
   | CharLiteral of char * position
+  | LongLiteral of int * position
   | StringLiteral of string * position
   | MemberAccess of expr * ident * position
   | PointerMemberAccess of expr * ident * position
@@ -93,7 +97,9 @@ type stmt =
   | Break of position
   | Continue of position
   | DoWhile of stmt * expr * position
-  | LocalVarDecl of is_static * vartype * ident * expr option * position                   
+  | LocalVarDecl of is_static * vartype * ident * expr option * position 
+  | StructVarDecl of ident * ident * position          
+  | StructVarDeclInit of ident * ident * expr * position         
 [@@deriving compare, sexp, equal, show]
 
 and for_init =
@@ -114,3 +120,4 @@ type decl =
 [@@deriving compare, sexp, equal, show]
 
 type prog = Prog of decl list [@@deriving compare, sexp, equal, show]
+

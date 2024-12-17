@@ -63,6 +63,7 @@ struct
     | IntLiteral _ -> S.Int
     | FloatLiteral _ -> S.Float
     | CharLiteral _ -> S.Char
+    | LongLiteral _ -> S.Long
     | StringLiteral _ -> S.Pointer S.Char
     | MemberAccess (expr, ident, _) -> begin
       let base_type = expr_to_vartype expr in
@@ -127,6 +128,7 @@ struct
     | IntLiteral (i, _) -> L.const_int (L.i32_type context) i
     | FloatLiteral (f, _) -> L.const_float (L.float_type context) f
     | CharLiteral (c, _) -> L.const_int (L.i8_type context) (int_of_char c)
+    | LongLiteral (l, _) -> L.const_int (L.i64_type context) l
     | Var (id, _) -> 
       begin
         try (F.lookup_variable var_env id).value
@@ -172,6 +174,7 @@ struct
     | IntLiteral (i, _) -> L.const_int ll_int_t i
     | FloatLiteral (f, _) -> L.const_float ll_float_t f
     | CharLiteral (c, _) -> L.const_int ll_char_t (int_of_char c)
+    | LongLiteral (l, _) -> failwith "TODO"
     | StringLiteral (s, _) -> failwith "TODO"
     | MemberAccess (m, id, _) -> failwith "TODO"
     | PointerMemberAccess (pt, id, _) -> failwith "TODO"
@@ -206,6 +209,9 @@ struct
         | TimesAssign -> failwith "TODO"
         | DivideAssign -> failwith "TODO"
         | ModuloAssign -> failwith "TODO"
+        | BitwiseAndAssign -> failwith "TODO"
+        | BitwiseOrAssign -> failwith "TODO"
+        | BitwiseXorAssign -> failwith "TODO"
       end
     | Assign (id, e, _) -> 
         let ll_v = (F.lookup_variable var_env id) in
@@ -400,6 +406,8 @@ struct
         | None -> ()
       end;
       nil_return_type
+    | StructVarDecl (lhs_ident, rhs_ident, position ) -> failwith "TODO"        
+    | StructVarDeclInit (lhs_ident, rhs_ident, expr, position ) -> failwith "TODO"    
 
   let parse_decl (decl: S.decl) (scoped_fn: L.llvalue option): L.llvalue =
     match decl with

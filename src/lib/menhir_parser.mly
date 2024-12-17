@@ -2,6 +2,14 @@
   (* Helper function to unwrap Lexing positions *)
   let make_position (startpos: Lexing.position) (endpos: Lexing.position)  =
     Syntax_node.create_position startpos.pos_cnum endpos.pos_cnum
+
+  exception ParserError of string * Lexing.position
+
+  let raise_parser_error (msg: string) (startpos: Lexing.position) =
+    let line = startpos.pos_lnum in
+    let col = startpos.pos_cnum - startpos.pos_bol + 1 in
+    raise (ParserError (Printf.sprintf "Syntax error at line %d, column %d: %s" line col msg, startpos))
+
 %}
 
 (* Tokens with precedence and non-associativity *)
@@ -19,12 +27,13 @@
 %token FLOAT FOR IF INT LONG RETURN STRUCT SWITCH TYPEDEF STATIC VOID DO WHILE
 %token <int> INT_LITERAL
 %token <float> FLOAT_LITERAL
+%token <int> LONG_LITERAL
 %token <char> CHAR_LITERAL
 %token <string> STRING_LITERAL
 %token <string> IDENT
 %token LPAREN RPAREN LBRACE RBRACE SEMI COMMA ASSIGN COLON
 %token PLUS MINUS STAR SLASH PERCENT
-%token EQUAL NOT_EQUAL LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
+%token EQUAL NOT_EQUAL LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL AMPERSAND_EQUAL BIT_OR_EQUAL BIT_XOR_EQUAL
 %token LEFT_SHIFT RIGHT_SHIFT
 %token PLUS_EQUAL MINUS_EQUAL STAR_EQUAL SLASH_EQUAL PERCENT_EQUAL
 %token DOT ARROW LBRACKET RBRACKET
@@ -95,9 +104,8 @@ decl:
       Syntax_node.StructDecl (Syntax_node.Ident $2, $4, make_position $startpos $endpos)
     }
   | error SEMI {
-      Printf.eprintf "Syntax error in declaration.\n";
-      Syntax_node.GlobalVarDecl (Syntax_node.Void, Syntax_node.Ident "error", None, make_position $startpos $endpos)
-    }
+      raise_parser_error "Invalid declaration" $startpos
+  }
 
 (* Function parameters *)
 param_list:
@@ -126,6 +134,12 @@ stmt_list:
   | stmt_list stmt { $1 @ [$2] }
 
 stmt:
+  | STRUCT IDENT IDENT SEMI {
+      Syntax_node.StructVarDecl (Syntax_node.Ident $2, Syntax_node.Ident $3, make_position $startpos $endpos)
+    }
+  | STRUCT IDENT IDENT ASSIGN expr SEMI {
+      Syntax_node.StructVarDeclInit (Syntax_node.Ident $2, Syntax_node.Ident $3, $5, make_position $startpos $endpos)
+    }
   | RETURN expr SEMI {
       Syntax_node.Return ($2, make_position $startpos $endpos)
     }
@@ -171,6 +185,9 @@ stmt:
   | STATIC type_spec IDENT ASSIGN expr SEMI {
       Syntax_node.LocalVarDecl (Syntax_node.Is_static true, $2, Syntax_node.Ident $3, Some $5, make_position $startpos $endpos)
     }
+  | error SEMI {
+      raise_parser_error "Invalid statement" $startpos
+    }
 
 (* For-loop initializer can be either a variable declaration or assignment *)
 for_init:
@@ -207,6 +224,9 @@ case:
 expr:
   | INT_LITERAL {
       Syntax_node.IntLiteral ($1, make_position $startpos $endpos)
+    }
+  | LONG_LITERAL {
+      Syntax_node.LongLiteral ($1, make_position $startpos $endpos)
     }
   | FLOAT_LITERAL {
       Syntax_node.FloatLiteral ($1, make_position $startpos $endpos)
@@ -248,10 +268,7 @@ expr:
       $2
     }
   | error {
-      (* Note: The below is out of scope -- will have to figure out why *)
-      (* Printf.eprintf "Syntax error in expression at line %d.\n" $startpos.pos_lnum; *)
-      Printf.eprintf "Syntax error in expression";
-      Syntax_node.Var (Syntax_node.Ident "error", make_position $startpos $endpos)
+      raise_parser_error "Invalid expression" $startpos
     }
 
 (* Arguments for function calls *)
@@ -297,14 +314,17 @@ bin_ops:
   | GREATER_EQUAL { Syntax_node.GreaterEqual }
   | AND { Syntax_node.LogicalAnd }
   | OR { Syntax_node.LogicalOr }
+  | BIT_OR { Syntax_node.BitwiseOr }
+  | BIT_XOR { Syntax_node.BitwiseXor }
+  | AMPERSAND { Syntax_node.BitwiseAnd }
   | PLUS_EQUAL { Syntax_node.PlusAssign }
   | MINUS_EQUAL { Syntax_node.MinusAssign }
   | STAR_EQUAL { Syntax_node.TimesAssign }
   | SLASH_EQUAL { Syntax_node.DivideAssign }
   | PERCENT_EQUAL { Syntax_node.ModuloAssign }
-  | AMPERSAND { Syntax_node.BitwiseAnd }
-  | BIT_OR { Syntax_node.BitwiseOr }
-  | BIT_XOR { Syntax_node.BitwiseXor }
+  | AMPERSAND_EQUAL { Syntax_node.BitwiseAndAssign }
+  | BIT_OR_EQUAL { Syntax_node.BitwiseOrAssign }
+  | BIT_XOR_EQUAL { Syntax_node.BitwiseXorAssign }
 
 prefix_un_ops:
   | PLUS { Syntax_node.Positive}
@@ -319,4 +339,4 @@ prefix_un_ops:
 postfix_un_ops:
   | INCREMENT { Syntax_node.PostfixIncrement }
   | DECREMENT { Syntax_node.PostfixDecrement }
-
+  

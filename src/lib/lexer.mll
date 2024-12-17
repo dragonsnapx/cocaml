@@ -49,11 +49,17 @@ rule token = parse
   | "struct"       { STRUCT }
   | "typedef"      { TYPEDEF }
 
+  (* Identifiers *)
+  | identifier     { IDENT (Lexing.lexeme lexbuf) }
+
   (* Literals and Operators *)
+  | digit+ ('L' | 'l') { let lexeme = Lexing.lexeme lexbuf in
+                         let number = String.sub lexeme 0 (String.length lexeme - 1) in
+                         LONG_LITERAL (int_of_string number)
+                       }
   | digit+         { INT_LITERAL (int_of_string (Lexing.lexeme lexbuf)) }
   | digit+ '.' digit+ { FLOAT_LITERAL (float_of_string (Lexing.lexeme lexbuf)) }
   | '\'' [^'\''] '\'' { CHAR_LITERAL (Lexing.lexeme lexbuf).[1] }   
-  | identifier     { IDENT (Lexing.lexeme lexbuf) }
   | ":"            { COLON }
   | "=="           { EQUAL }
   | "!="           { NOT_EQUAL }
@@ -66,6 +72,9 @@ rule token = parse
   | "*="           { STAR_EQUAL }
   | "/="           { SLASH_EQUAL }
   | "%="           { PERCENT_EQUAL }
+  | "&="           { AMPERSAND_EQUAL }
+  | "|="           { BIT_OR_EQUAL }
+  | "^="           { BIT_XOR_EQUAL }
   | "++"           { INCREMENT }
   | "--"           { DECREMENT }
   | "<<"           { LEFT_SHIFT }
@@ -78,6 +87,10 @@ rule token = parse
   | ")"            { RPAREN }
   | "{"            { LBRACE }
   | "}"            { RBRACE }
+  | "."            { DOT }
+  | "->"           { ARROW }
+  | "["            { LBRACKET }
+  | "]"            { RBRACKET }
   | ';'            { SEMI }
   | ','            { COMMA }
   | "+"            { PLUS }

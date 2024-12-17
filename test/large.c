@@ -29,8 +29,10 @@ int main() {
   long d = 100000L;
 
   // Strings
+  /*
   char str1[20] = "Hello";
   char str2[20] = " World";
+  */
 
   // Static local variable
   static int static_local = 0;
@@ -40,9 +42,11 @@ int main() {
   b = b * 2.0;
 
   // Struct usage
+  /*
   struct Point p1;
   p1.x = 1;
   p1.y = 2;
+  */
 
   // For-loop
   int j = 0;
@@ -67,7 +71,7 @@ int main() {
   } while (do_count < 3);
 
   // Function call
-  int sum = add(a, p1.x);
+  int sum = add(a, j); // replace j with p1.x
 
   // Bit operations
   int bit_result = bit_operations(5, 3); 
