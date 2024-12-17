@@ -138,7 +138,7 @@ stmt:
   | WHILE LPAREN expr RPAREN stmt {
       Syntax_node.While ($3, $5, make_position $startpos $endpos)
     }
-  | FOR LPAREN expr SEMI expr SEMI expr RPAREN stmt {
+  | FOR LPAREN for_init SEMI expr SEMI expr RPAREN stmt {
       Syntax_node.For ($3, $5, $7, $9, make_position $startpos $endpos)
     }
   | expr SEMI {
@@ -170,6 +170,18 @@ stmt:
     }
   | STATIC type_spec IDENT ASSIGN expr SEMI {
       Syntax_node.LocalVarDecl (Syntax_node.Is_static true, $2, Syntax_node.Ident $3, Some $5, make_position $startpos $endpos)
+    }
+
+(* For-loop initializer can be either a variable declaration or assignment *)
+for_init:
+  | expr {
+      Syntax_node.ForExpr $1
+    }
+  | type_spec IDENT ASSIGN expr {
+      Syntax_node.ForVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, Some $4)
+    }
+  | type_spec IDENT {
+      Syntax_node.ForVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, None)
     }
 
 (* Cases for switch statements *)

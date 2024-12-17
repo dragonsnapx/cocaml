@@ -54,6 +54,7 @@ rule token = parse
   | digit+ '.' digit+ { FLOAT_LITERAL (float_of_string (Lexing.lexeme lexbuf)) }
   | '\'' [^'\''] '\'' { CHAR_LITERAL (Lexing.lexeme lexbuf).[1] }   
   | identifier     { IDENT (Lexing.lexeme lexbuf) }
+  | ":"            { COLON }
   | "=="           { EQUAL }
   | "!="           { NOT_EQUAL }
   | "<"            { LESS_THAN }
@@ -78,6 +79,7 @@ rule token = parse
   | "{"            { LBRACE }
   | "}"            { RBRACE }
   | ';'            { SEMI }
+  | ','            { COMMA }
   | "+"            { PLUS }
   | "-"            { MINUS }
   | "*"            { STAR }

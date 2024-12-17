@@ -135,13 +135,12 @@ module Lexer_tests =
         S.prog_of_sexp sexp
     
       let test_parse_c_to_ast _ =
-        let input_code = read_file "../test/simple.c" in
-        let derived_ast = M.parse_c_to_ast input_code in
+        let input_file = "../../../test/simple.c" in
+        let derived_ast = M.parse_c_to_ast input_file in
     
         (* Read in simple_ast.txt as the expected tree *)
-        let expected_ast =
-          read_file "../test/simple_ast_sexp.txt" |> prog_of_sexp
-        in
+        let result_file = "../../../test/simple_ast_sexp.txt" in
+        let expected_ast = result_file |> read_file |> prog_of_sexp in
     
         (* Compare the derived tree to the expected tree *)
         assert_equal

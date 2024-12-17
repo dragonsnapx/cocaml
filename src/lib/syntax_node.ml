@@ -85,7 +85,7 @@ type stmt =
   | Return of expr * position
   | If of expr * stmt * stmt option * position
   | While of expr * stmt * position
-  | For of expr * expr * expr * stmt * position
+  | For of for_init * expr * expr * stmt * position
   | ExprStmt of expr * position
   | Block of stmt list * position
   | Switch of expr * case list * position
@@ -93,6 +93,11 @@ type stmt =
   | Continue of position
   | DoWhile of stmt * expr * position
   | LocalVarDecl of is_static * vartype * ident * expr option * position                   
+[@@deriving compare, sexp, equal, show]
+
+and for_init =
+  | ForExpr of expr                                                           
+  | ForVarDecl of is_static * vartype * ident * expr option                   
 [@@deriving compare, sexp, equal, show]
 
 and case =
@@ -104,7 +109,7 @@ type decl =
   | GlobalVarDecl of is_static * vartype * ident * expr option * position     
   | FuncDecl of vartype * ident * (vartype * ident) list * stmt * position    
   | TypedefDecl of vartype * ident * position                                 
-  | StructDecl of ident * decl list * position                                
+  | StructDecl of ident * decl list * position                               
 [@@deriving compare, sexp, equal, show]
 
 type prog = Prog of decl list [@@deriving compare, sexp, equal, show]
