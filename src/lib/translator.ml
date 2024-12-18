@@ -47,7 +47,7 @@ struct
         try
           (Hashtbl.find_exn htbl_types custom)
         with Not_found_s _ ->
-          failwith @@ "Translation Error: Undefined type: " ^ (ident_to_string custom)
+          C.raise_transl_err @@ "Translation Error: Undefined type: " ^ (ident_to_string custom)
       end
     | Struct str -> Hashtbl.find_exn htbl_types str
 
@@ -65,8 +65,8 @@ struct
         let fields = Hashtbl.find_exn htbl_structs s_id in
         (match List.find fields ~f:(fun (fid, _) -> S.compare_ident fid ident = 0) with
           | Some (_, ft) -> ft
-          | None -> failwith "Translation Error: Unknown struct field")
-      | _ -> failwith "Translation Error: MemberAccess on non-struct type")
+          | None -> C.raise_transl_err "Unknown struct field")
+      | _ -> C.raise_transl_err "MemberAccess on non-struct type")
     end
     | PointerMemberAccess (e, field_id, _) -> begin
         match expr_to_vartype e with
@@ -77,27 +77,27 @@ struct
             begin
               match List.find f ~f:(fun (fid, _) -> S.compare_ident fid field_id = 0) with
               | Some (_, ft) -> ft
-              | None -> failwith "Translation Error: Attempted to access an unknown struct field"
+              | None -> C.raise_transl_err "Attempted to access an unknown struct field"
             end
-          | None -> failwith "Translation Error: Attempted to access a pointer of a member of a non-existent field."
+          | None -> C.raise_transl_err "Attempted to access a pointer of a member of a non-existent field."
         end
-        | _ -> failwith "Translation Error: Attempted to access a pointer of a member on a non-pointer type."
+        | _ -> C.raise_transl_err "Attempted to access a pointer of a member on a non-pointer type."
       end
     | ArrayAccess (expr, _, _) -> begin
       match expr_to_vartype expr with
       | Pointer subtp -> subtp
-      | _ -> failwith "Translation Error: Array access on non-pointer type"
+      | _ -> C.raise_transl_err "Array access on non-pointer type"
       end
     | Var (ident, _) -> begin
       try (F.lookup_variable var_env ident).tp
-        with Not_found_s _ -> failwith @@ "Translation Error: Cannot infer type of " ^ (ident_to_string ident)
+        with Not_found_s _ -> C.raise_transl_err @@ " Cannot infer type of " ^ (ident_to_string ident)
       end
     | BinOp (bin_op, expr1, expr2, _) -> S.Int
     | Assign (_, expr, _) -> expr_to_vartype expr
     | Call (expr, param, _) -> begin
         match Hashtbl.find htbl_functions expr with
         | Some s -> failwith "TODO"
-        | None -> failwith "Translation Error: Cannot infer return type of function"
+        | None -> C.raise_transl_err "Cannot infer return type of function"
       end
     | PrefixUnOp (prefix_un_op, expr, _) -> 
       begin
@@ -110,7 +110,7 @@ struct
         | Dereference -> begin
             match t with
             | Pointer subt -> subt
-            | _ -> failwith "Translation Error: Attempted to dereference a non-pointer"
+            | _ -> C.raise_transl_err "Attempted to dereference a non-pointer"
           end
         | PrefixIncrement | PrefixDecrement -> t
       end
@@ -125,9 +125,9 @@ struct
     | Var (id, _) -> 
       begin
         try (F.lookup_variable var_env id).value
-        with Not_found_s _  -> failwith @@ "Translation Error: Cannot extract value from " ^ (ident_to_string id)
+        with Not_found_s _  -> C.raise_transl_err @@ "Cannot extract value from " ^ (ident_to_string id)
       end
-    | _ -> failwith "Translation Error: extract_expr_value must be called on literal"
+    | _ -> C.raise_transl_err "extract_expr_value must be called on literal"
 
   let func_entry_builder (): L.llbuilder =
     L.insertion_block C.builder
@@ -147,7 +147,7 @@ struct
     let fn_name = ident_to_string label in
     let fn = match L.lookup_function fn_name C.this_module with
     | None -> L.declare_function fn_name func_type C.this_module
-    | Some _ -> failwith "Translation Error: Function already exists" in
+    | Some _ -> C.raise_transl_err "Function already exists" in
     let entry_block = C.append_block "entry" fn in
     C.position_at_end entry_block;
     List.iteri params ~f:(fun i (tp, id) -> 
@@ -219,7 +219,7 @@ struct
             let fn_call_name = "fn_call_" ^ (ident_to_string fn.name) in
             L.build_call fn.returns fn.fn args fn_call_name  C.builder
         (* TODO: Forward declaration? *)
-        | None -> failwith @@ "Cannot find function call to function: " ^ (ident_to_string id)
+        | None -> C.raise_transl_err @@ "Cannot find function call to function: " ^ (ident_to_string id)
       end
     | PrefixUnOp (prefix_un_op, e, _) -> failwith "TODO"
     | PostfixUnOp (e, postfix_un_op, _) -> failwith "TODO"
@@ -382,18 +382,18 @@ struct
     | GlobalVarDecl (is_static, vartype, ident, expr, position) -> begin
         match expr with
         | Some v -> L.declare_global C.ll_int_t (ident_to_string ident) C.this_module
-        | None -> failwith "Translation Error: Global variable must be initialized"
+        | None -> C.raise_transl_err "Global variable must be initialized"
       end
     | FuncDecl (vartype, ident, params, stmt, _) ->
       declare_function ident (vartype_to_llvartype vartype) params stmt
     | TypedefDecl (from_vartype, to_vartype, position) ->
       begin
         match from_vartype with
-        | Pointer _ | Void -> failwith "Translation Error: Cannot typecast pointer or void." 
+        | Pointer _ | Void -> C.raise_transl_err "Cannot typecast pointer or void." 
         | Typedef custom  -> begin
           match Hashtbl.find htbl_types custom with
           | Some tp -> failwith "TODO"
-          | None -> failwith "Translation Error: Could not typecast from unknown type to another."
+          | None -> C.raise_transl_err "Could not typecast from unknown type to another."
         end
         | v -> failwith "TODO"
       end
@@ -406,7 +406,7 @@ struct
           |> List.map ~f:(fun el ->
               match el with
               | GlobalVarDecl (_, vt, fid, _, _) -> (fid, vt)
-              | _ -> failwith "Translation Error: Structs can only have variable declarations"
+              | _ -> C.raise_transl_err "Structs can only have variable declarations"
             )
           end in
         Hashtbl.set htbl_structs ~key:id ~data:field_types;

@@ -26,5 +26,10 @@ module Make(Param : ModuleParameter) = struct
   let const_ll_float_t = L.const_float ll_float_t
   let const_ll_char_t = L.const_int ll_char_t
   let const_ll_long_t = L.const_int ll_long_t
+
+  exception TranslationError of string
+
+  let raise_transl_err msg =
+    raise (TranslationError ("Translation Error: " ^ msg))
   
 end
