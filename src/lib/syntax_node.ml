@@ -90,7 +90,7 @@ module Expr =
       | ArrayAccess of t * t * Position.t
       | Var of Ident.t * Position.t
       | BinOp of bin_op * t * t * Position.t
-      | Assign of Ident.t * t * Position.t
+      | Assign of t * t * Position.t
       | Call of Ident.t * t list * Position.t
       | PrefixUnOp of prefix_un_op * t * Position.t
       | PostfixUnOp of t * postfix_un_op * Position.t
@@ -107,7 +107,7 @@ type var_decl = Var_decl of is_static * VarType.t * Ident.t * Expr.t option * Po
 type typedef_decl = Typedef_decl of VarType.t * Ident.t * Position.t  
 [@@deriving compare, sexp, equal, show]
 
-  type struct_decl = Struct_decl of Ident.t * Ident.t * var_decl list option * Position.t
+type struct_decl = Struct_decl of Ident.t * Ident.t * var_decl list option * Position.t
 [@@deriving compare, sexp, equal, show]
 
 type struct_init = Struct_init of Ident.t * Ident.t * Expr.t option * Position.t
