@@ -159,6 +159,8 @@ module Translator_tests =
   struct
     module X = Cocaml.Syntax_node
     module M = Cocaml.Translator.TranslateFile
+
+    (* Random position for testing *)
     let _pos: X.Position.t = { pos_start = 5; pos_end = 12 }
 
     let ignore _ = ()
@@ -202,11 +204,22 @@ module Translator_tests =
     
     let square_call = X.Expr.Call (X.Ident.create("square"), [X.Expr.IntLiteral (3, _pos)], _pos)
 
-    let make_struct = X.Decl.StructDecl (X.Struct_decl (X.Ident.create("message"), X.Ident.create("message2"),  Some [  ], _pos))
+    let msg_struct = X.Ident.create("message")
+
+    let decl_struct = X.Stmt.StructDecl (X.Struct_decl (X.Ident.create("Message"), msg_struct,  Some [ 
+      X.Var_decl ((X.Is_static false), (X.VarType.Int), X.Ident.create("status"), None, _pos);
+      X.Var_decl ((X.Is_static false), (X.VarType.Long), X.Ident.create("payload"), None, _pos);
+    ], _pos))
+
+    let init_struct = X.Stmt.StructInit (X.Struct_init (X.Ident.create("Message"), msg_struct,  None, _pos))
     (* let return_after_call_square_fn_expr: X.stmt = X.Return (square_call, _pos) *)
 
+    (* For simplicity, variable is reused *)
+
+    (* z = msg.status *)
+    let access_struct = X.Expr.Assign (id_z, X.Expr.PointerMemberAccess (X.Expr.Var(msg_struct, _pos), X.Ident.create("status"), _pos), _pos)
+
     let program : X.prog = X.Prog [
-      make_struct;
       X.Decl.FuncDecl (
         X.VarType.Int,
         X.Ident.create("square"),
@@ -226,12 +239,14 @@ module Translator_tests =
           X.VarType.Int, X.Ident.create("argc")
         ],
         X.Stmt.Block ([
-          make_struct;
+          decl_struct;
+          init_struct;
           decl_expr;
           decl_assign_expr;
           ptr_decl;
           ptr_deref;
           decl_calc_int_expr;
+          X.Stmt.ExprStmt (access_struct, _pos);
           X.Stmt.ExprStmt (square_call, _pos);
           X.Stmt.Return (square_call, _pos);
         ], _pos),
