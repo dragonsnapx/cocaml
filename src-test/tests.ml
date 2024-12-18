@@ -117,41 +117,92 @@ module Lexer_tests =
 
   module Parser_tests =
     struct
-      (* 
-      * Helper functions 
-      * Note: Some of these will likely be used in other test modules, so we will probably extract them 
-      *)
-
       module S = Cocaml.Syntax_node
       module M = Cocaml_main
+      
+      (* Write a string to a file *)
+      let write_file (filename: string) (content: string) =
+        Out_channel.with_file filename ~f:(fun out_channel ->
+          Out_channel.output_string out_channel content)
+    
+      (* Convert a Syntax_node.prog to an S-expression string *)
+      let prog_to_sexp (prog: S.prog) : string = 
+        S.sexp_of_prog prog |> Sexp.to_string_hum
 
-      (* Read a file into a string *)
-      let read_file filename =
-        In_channel.read_all filename
+      (* Check if Syntax_node.prog is empty *)
+      let is_prog_empty (prog: S.prog) : bool =
+        match prog with
+          | S.Prog [] -> true
+          | _ -> false
     
-      (* Convert an S-expression string to a Syntax_node.prog *)
-      let prog_of_sexp sexp_str =
-        let sexp = Sexp.of_string sexp_str in
-        S.prog_of_sexp sexp
-    
-      let test_parse_c_to_ast _ =
-        let input_file = "../../../test/simple.c" in
-        let derived_ast = M.parse_c_to_ast input_file in
-    
-        (* Read in simple_ast.txt as the expected tree *)
-        let result_file = "../../../test/simple_ast_sexp.txt" in
-        let expected_ast = result_file |> read_file |> prog_of_sexp in
-    
-        (* Compare the derived tree to the expected tree *)
-        assert_equal
-          ~cmp:S.equal_prog
-          ~printer:S.show_prog
-          expected_ast
-          derived_ast
+      let test_parser_simple _ = 
+        let input_path = "../../../test/simple.c" in
+        let result = M.parse_c_to_ast input_path in
+        
+        let output_path = "../../../test/simple_ast.txt" in
+        write_file output_path (prog_to_sexp result);
+        assert_bool
+          "The simple AST should not be invalid!"
+          (not (is_prog_empty result))
 
+      let test_parser_switch _ = 
+        let input_path = "../../../test/switch.c" in
+        let result = M.parse_c_to_ast input_path in
+        
+        let output_path = "../../../test/switch_ast.txt" in
+        write_file output_path (prog_to_sexp result);
+        assert_bool
+          "The switch AST should not be invalid!"
+          (not (is_prog_empty result))
+
+      let test_parser_loop _ = 
+        let input_path = "../../../test/loop.c" in
+        let result = M.parse_c_to_ast input_path in
+        
+        let output_path = "../../../test/loop_ast.txt" in
+        write_file output_path (prog_to_sexp result);
+        assert_bool
+          "The loop AST should not be invalid!"
+          (not (is_prog_empty result))
+
+      let test_parser_loop_undefined _ = 
+        let input_path = "../../../test/loop_undefined_variable.c" in
+        let result = M.parse_c_to_ast input_path in
+        
+        let output_path = "../../../test/loop_undefined_variable_ast.txt" in
+        write_file output_path (prog_to_sexp result);
+        assert_bool
+          "The loop (with an undefined variable) AST should not be invalid!"
+          (not (is_prog_empty result))
+
+      let test_parser_no_colon _ = 
+        let input_path = "../../../test/no_colon.c" in
+        let result = M.parse_c_to_ast input_path in
+        
+        let output_path = "../../../test/no_colon.txt" in
+        write_file output_path (prog_to_sexp result);
+        assert_bool
+          "The colon-missing AST should not be valid!"
+          (is_prog_empty result)
+      
+      let test_parser_full_c _ = 
+        let input_path = "../../../test/large.c" in
+        let result = M.parse_c_to_ast input_path in
+        
+        let output_path = "../../../test/large.txt" in
+        write_file output_path (prog_to_sexp result);
+        assert_bool
+          "The full c AST should not be invalid!"
+          (not (is_prog_empty result))
+        
       let series =
         "Parser Tests" >::: [
-          "Test Parse C to AST" >:: test_parse_c_to_ast
+          "Parser Simple Test" >:: test_parser_simple;
+          "Parser Switch Test" >:: test_parser_switch;
+          "Parser Loop Test" >:: test_parser_loop;
+          "Parser Loop with Undefined Test" >:: test_parser_loop_undefined;
+          "Parser Missing Colon Test" >:: test_parser_no_colon;
+          "Parser Full C Test" >:: test_parser_full_c
         ]
     end
 

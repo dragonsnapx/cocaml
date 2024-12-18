@@ -1,0 +1,214 @@
+(Prog
+ ((VarDecl
+   (Var_decl (Is_static false) Int (Ident global_count)
+    ((IntLiteral 0 ((pos_start 39) (pos_end 40))))
+    ((pos_start 20) (pos_end 41))))
+  (VarDecl
+   (Var_decl (Is_static true) Int (Ident static_global)
+    ((IntLiteral 1 ((pos_start 69) (pos_end 70))))
+    ((pos_start 42) (pos_end 71))))
+  (StructDecl
+   (Struct_decl (Ident Point) (Ident Point)
+    (((Var_decl (Is_static false) Int (Ident x) ()
+       ((pos_start 90) (pos_end 96)))
+      (Var_decl (Is_static false) Int (Ident y) ()
+       ((pos_start 99) (pos_end 105)))))
+    ((pos_start 73) (pos_end 108))))
+  (FuncDecl Int (Ident add) ((Int (Ident a)) (Int (Ident b)))
+   (Block
+    ((Return
+      (BinOp Plus (Var (Ident a) ((pos_start 174) (pos_end 175)))
+       (Var (Ident b) ((pos_start 178) (pos_end 179)))
+       ((pos_start 174) (pos_end 179)))
+      ((pos_start 167) (pos_end 180))))
+    ((pos_start 163) (pos_end 182)))
+   ((pos_start 141) (pos_end 182)))
+  (FuncDecl Int (Ident bit_operations)
+   ((Int (Ident num1)) (Int (Ident num2)))
+   (Block
+    ((VarDecl
+      (Var_decl (Is_static false) Int (Ident result)
+       ((IntLiteral 0 ((pos_start 281) (pos_end 282))))
+       ((pos_start 268) (pos_end 283))))
+     (ExprStmt
+      (BinOp BitwiseOrAssign
+       (Var (Ident result) ((pos_start 286) (pos_end 292)))
+       (BinOp BitwiseAnd (Var (Ident num1) ((pos_start 297) (pos_end 301)))
+        (Var (Ident num2) ((pos_start 304) (pos_end 308)))
+        ((pos_start 297) (pos_end 308)))
+       ((pos_start 286) (pos_end 309)))
+      ((pos_start 286) (pos_end 310)))
+     (ExprStmt
+      (BinOp BitwiseXorAssign
+       (Var (Ident result) ((pos_start 327) (pos_end 333)))
+       (BinOp BitwiseOr (Var (Ident num1) ((pos_start 338) (pos_end 342)))
+        (Var (Ident num2) ((pos_start 345) (pos_end 349)))
+        ((pos_start 338) (pos_end 349)))
+       ((pos_start 327) (pos_end 350)))
+      ((pos_start 327) (pos_end 351)))
+     (ExprStmt
+      (Assign (Var (Ident result) ((pos_start 368) (pos_end 374)))
+       (PrefixUnOp BitwiseNot
+        (Var (Ident result) ((pos_start 378) (pos_end 384)))
+        ((pos_start 377) (pos_end 384)))
+       ((pos_start 368) (pos_end 384)))
+      ((pos_start 368) (pos_end 385)))
+     (Return (Var (Ident result) ((pos_start 411) (pos_end 417)))
+      ((pos_start 404) (pos_end 418))))
+    ((pos_start 264) (pos_end 420)))
+   ((pos_start 225) (pos_end 420)))
+  (FuncDecl Int (Ident main) ()
+   (Block
+    ((VarDecl
+      (Var_decl (Is_static false) Int (Ident a)
+       ((IntLiteral 10 ((pos_start 461) (pos_end 463))))
+       ((pos_start 453) (pos_end 464))))
+     (VarDecl
+      (Var_decl (Is_static false) Float (Ident b)
+       ((FloatLiteral 3.14 ((pos_start 477) (pos_end 481))))
+       ((pos_start 467) (pos_end 482))))
+     (VarDecl
+      (Var_decl (Is_static false) Char (Ident c)
+       ((CharLiteral C ((pos_start 494) (pos_end 497))))
+       ((pos_start 485) (pos_end 498))))
+     (VarDecl
+      (Var_decl (Is_static false) Long (Ident d)
+       ((LongLiteral 100000 ((pos_start 510) (pos_end 517))))
+       ((pos_start 501) (pos_end 518))))
+     (VarDecl
+      (Var_decl (Is_static true) Int (Ident static_local)
+       ((IntLiteral 0 ((pos_start 654) (pos_end 655))))
+       ((pos_start 628) (pos_end 656))))
+     (ExprStmt
+      (BinOp PlusAssign (Var (Ident a) ((pos_start 693) (pos_end 694)))
+       (IntLiteral 5 ((pos_start 698) (pos_end 699)))
+       ((pos_start 693) (pos_end 699)))
+      ((pos_start 693) (pos_end 700)))
+     (ExprStmt
+      (BinOp Times
+       (Assign (Var (Ident b) ((pos_start 703) (pos_end 704)))
+        (Var (Ident b) ((pos_start 707) (pos_end 708)))
+        ((pos_start 703) (pos_end 708)))
+       (FloatLiteral 2 ((pos_start 711) (pos_end 714)))
+       ((pos_start 703) (pos_end 714)))
+      ((pos_start 703) (pos_end 715)))
+     (StructInit
+      (Struct_init (Ident Point) (Ident p1) ()
+       ((pos_start 737) (pos_end 753))))
+     (ExprStmt
+      (Assign
+       (MemberAccess (Var (Ident p1) ((pos_start 756) (pos_end 758)))
+        (Ident x) ((pos_start 756) (pos_end 760)))
+       (IntLiteral 1 ((pos_start 763) (pos_end 764)))
+       ((pos_start 756) (pos_end 764)))
+      ((pos_start 756) (pos_end 765)))
+     (ExprStmt
+      (Assign
+       (MemberAccess (Var (Ident p1) ((pos_start 768) (pos_end 770)))
+        (Ident y) ((pos_start 768) (pos_end 772)))
+       (IntLiteral 2 ((pos_start 775) (pos_end 776)))
+       ((pos_start 768) (pos_end 776)))
+      ((pos_start 768) (pos_end 777)))
+     (VarDecl
+      (Var_decl (Is_static false) Int (Ident j)
+       ((IntLiteral 0 ((pos_start 803) (pos_end 804))))
+       ((pos_start 795) (pos_end 805))))
+     (For
+      (ForVarDecl
+       (Var_decl (Is_static false) Int (Ident i)
+        ((IntLiteral 0 ((pos_start 821) (pos_end 822))))
+        ((pos_start 813) (pos_end 823))))
+      (BinOp Less (Var (Ident i) ((pos_start 824) (pos_end 825)))
+       (IntLiteral 5 ((pos_start 828) (pos_end 829)))
+       ((pos_start 824) (pos_end 829)))
+      (PostfixUnOp (Var (Ident i) ((pos_start 831) (pos_end 832)))
+       PostfixIncrement ((pos_start 831) (pos_end 834)))
+      (Block
+       ((If
+         (BinOp Modulo (Var (Ident i) ((pos_start 846) (pos_end 847)))
+          (BinOp Equal (IntLiteral 2 ((pos_start 850) (pos_end 851)))
+           (IntLiteral 0 ((pos_start 855) (pos_end 856)))
+           ((pos_start 850) (pos_end 856)))
+          ((pos_start 846) (pos_end 856)))
+         (Block
+          ((ExprStmt
+            (BinOp PlusAssign (Var (Ident j) ((pos_start 868) (pos_end 869)))
+             (Var (Ident i) ((pos_start 873) (pos_end 874)))
+             ((pos_start 868) (pos_end 874)))
+            ((pos_start 868) (pos_end 875))))
+          ((pos_start 858) (pos_end 881)))
+         ((Block
+           ((ExprStmt
+             (BinOp MinusAssign
+              (Var (Ident j) ((pos_start 897) (pos_end 898)))
+              (Var (Ident i) ((pos_start 902) (pos_end 903)))
+              ((pos_start 897) (pos_end 903)))
+             ((pos_start 897) (pos_end 904))))
+           ((pos_start 887) (pos_end 910))))
+         ((pos_start 842) (pos_end 910))))
+       ((pos_start 836) (pos_end 914)))
+      ((pos_start 808) (pos_end 914)))
+     (VarDecl
+      (Var_decl (Is_static false) Int (Ident count)
+       ((IntLiteral 0 ((pos_start 947) (pos_end 948))))
+       ((pos_start 935) (pos_end 949))))
+     (While
+      (BinOp Less (Var (Ident count) ((pos_start 959) (pos_end 964)))
+       (IntLiteral 3 ((pos_start 967) (pos_end 968)))
+       ((pos_start 959) (pos_end 968)))
+      (Block
+       ((ExprStmt
+         (PostfixUnOp (Var (Ident count) ((pos_start 976) (pos_end 981)))
+          PostfixIncrement ((pos_start 976) (pos_end 983)))
+         ((pos_start 976) (pos_end 984))))
+       ((pos_start 970) (pos_end 988)))
+      ((pos_start 952) (pos_end 988)))
+     (VarDecl
+      (Var_decl (Is_static false) Int (Ident do_count)
+       ((IntLiteral 0 ((pos_start 1026) (pos_end 1027))))
+       ((pos_start 1011) (pos_end 1028))))
+     (DoWhile
+      (Block
+       ((ExprStmt
+         (PostfixUnOp
+          (Var (Ident do_count) ((pos_start 1040) (pos_end 1048)))
+          PostfixIncrement ((pos_start 1040) (pos_end 1050)))
+         ((pos_start 1040) (pos_end 1051))))
+       ((pos_start 1034) (pos_end 1055)))
+      (BinOp Less (Var (Ident do_count) ((pos_start 1063) (pos_end 1071)))
+       (IntLiteral 3 ((pos_start 1074) (pos_end 1075)))
+       ((pos_start 1063) (pos_end 1075)))
+      ((pos_start 1031) (pos_end 1077)))
+     (VarDecl
+      (Var_decl (Is_static false) Int (Ident sum)
+       ((Call (Ident add)
+         ((Var (Ident a) ((pos_start 1114) (pos_end 1115)))
+          (Var (Ident j) ((pos_start 1117) (pos_end 1118))))
+         ((pos_start 1110) (pos_end 1119))))
+       ((pos_start 1100) (pos_end 1120))))
+     (VarDecl
+      (Var_decl (Is_static false) Int (Ident bit_result)
+       ((Call (Ident bit_operations)
+         ((IntLiteral 5 ((pos_start 1199) (pos_end 1200)))
+          (IntLiteral 3 ((pos_start 1202) (pos_end 1203))))
+         ((pos_start 1184) (pos_end 1204))))
+       ((pos_start 1167) (pos_end 1205))))
+     (ExprStmt
+      (PostfixUnOp
+       (Var (Ident static_local) ((pos_start 1238) (pos_end 1250)))
+       PostfixIncrement ((pos_start 1238) (pos_end 1252)))
+      ((pos_start 1238) (pos_end 1253)))
+     (ExprStmt
+      (PostfixUnOp
+       (Var (Ident static_global) ((pos_start 1256) (pos_end 1269)))
+       PostfixIncrement ((pos_start 1256) (pos_end 1271)))
+      ((pos_start 1256) (pos_end 1272)))
+     (ExprStmt
+      (Assign (Var (Ident global_count) ((pos_start 1304) (pos_end 1316)))
+       (Var (Ident sum) ((pos_start 1319) (pos_end 1322)))
+       ((pos_start 1304) (pos_end 1322)))
+      ((pos_start 1304) (pos_end 1323)))
+     (Return (Var (Ident global_count) ((pos_start 1333) (pos_end 1345)))
+      ((pos_start 1326) (pos_end 1346))))
+    ((pos_start 433) (pos_end 1348)))
+   ((pos_start 422) (pos_end 1348)))))
