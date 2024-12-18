@@ -169,6 +169,7 @@ module Translator_tests =
     let id_y = X.Ident.create("y")
     let id_z = X.Ident.create("z")
     let id_p = X.Ident.create("p")
+    let id_p_d = X.Ident.create("pd")
 
     (* int x *)
     let decl_assign_expr = X.Stmt.VarDecl (X.Var_decl ((X.Is_static false), X.VarType.Int, id_x, None, _pos))
@@ -181,8 +182,16 @@ module Translator_tests =
       X.Var_decl ((X.Is_static false), 
       (X.VarType.Pointer X.VarType.Int), 
       id_p, 
-      (Some (X.Expr.PrefixUnOp (X.Expr.Dereference, X.Expr.Var (id_x, _pos), _pos) )), 
+      (Some (X.Expr.PrefixUnOp (X.Expr.Address, X.Expr.Var (id_x, _pos), _pos) )), 
       _pos))
+
+    let ptr_deref = X.Stmt.VarDecl(
+      X.Var_decl ((X.Is_static false),
+        (X.VarType.Int),
+        id_p_d,
+        (Some (X.Expr.PrefixUnOp (X.Expr.Dereference, X.Expr.Var (id_p, _pos), _pos) )),
+        _pos
+      ))
 
     let bin_op_plus = X.Expr.BinOp (X.Expr.Plus, (X.Expr.IntLiteral (3, _pos)), (X.Expr.IntLiteral (4, _pos)), _pos)
     let decl_calc_int_expr = X.Stmt.VarDecl (X.Var_decl ((X.Is_static false), X.VarType.Int, id_z, Some bin_op_plus, _pos))
@@ -217,9 +226,11 @@ module Translator_tests =
           X.VarType.Int, X.Ident.create("argc")
         ],
         X.Stmt.Block ([
+          make_struct;
           decl_expr;
           decl_assign_expr;
           ptr_decl;
+          ptr_deref;
           decl_calc_int_expr;
           X.Stmt.ExprStmt (square_call, _pos);
           X.Stmt.Return (square_call, _pos);
@@ -229,7 +240,7 @@ module Translator_tests =
     ]
     let first_test _ =
       M.generate_llvm_ir program |> ignore;
-      M.print_module_to_file "../../../test/test.ll";
+      M.print_module_to_file "../../../test.ll";
 
       assert_equal 1 1
 
