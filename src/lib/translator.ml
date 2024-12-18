@@ -198,7 +198,7 @@ struct
 
       let field_ptr = L.build_struct_gep ll_struct_type tmp_alloca field_index "field_ptr" C.builder in
       L.build_load (llvartype_of_vartype field_tp) field_ptr "field_val" C.builder
-    | PointerMemberAccess (pt, id, _) -> failwith "TODO"
+    | PointerMemberAccess (pt, id, _) -> failwith "TODO2"
     | ArrayAccess (arr, acc, _) ->  begin
       let arr_val = parse_expr arr in
       let index_val = parse_expr acc in
@@ -269,7 +269,7 @@ struct
         | None -> C.raise_transl_err @@ "Cannot find function call to function: " ^ (ident_to_string id)
       end
     | PrefixUnOp (prefix_un_op, e, _) -> failwith "TODO"
-    | PostfixUnOp (e, postfix_un_op, _) -> failwith "TODO"
+    | PostfixUnOp (ex, postfix_un_op, _) -> failwith "TODO"
 
   and parse_stmt (stmt: S.stmt) (scoped_fn: L.llvalue): L.llvalue =
     let parse_expr stmt = parse_expr stmt scoped_fn in

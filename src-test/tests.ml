@@ -164,8 +164,15 @@ module Translator_tests =
     let ignore _ = ()
 
     (* let return_expr: X.stmt = X.Return ((X.IntLiteral (0, _pos)), _pos) *)
+    
+    (* int x *)
     let decl_assign_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "x"), None, _pos)
+    
+    (* int y = 3 *)
     let decl_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "y"), (Some (X.IntLiteral (3, _pos))), _pos)
+
+    (* int* p = x *)
+    let ptr_decl: X.stmt = X.LocalVarDecl((X.Is_static false), (X.Pointer X.Int), (X.Ident "p"), (Some (X.PrefixUnOp (X.Dereference, X.Var (X.Ident "x", _pos), _pos) )), _pos)
 
     let bin_op_plus: X.expr = X.BinOp (X.Plus, (X.IntLiteral (3, _pos)), (X.IntLiteral (4, _pos)), _pos)
     let decl_calc_int_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "z"), Some bin_op_plus, _pos)
@@ -175,9 +182,12 @@ module Translator_tests =
     let return_square: X.stmt = X.Return ((X.Var ((X.Ident "y"), _pos)), _pos)
     
     let square_call: X.expr = X.Call ((X.Ident "square"), [X.IntLiteral (3, _pos)], _pos)
+
+    let make_struct: X.decl = X.StructDecl ((X.Ident "message"), [  ], _pos)
     (* let return_after_call_square_fn_expr: X.stmt = X.Return (square_call, _pos) *)
 
     let program : X.prog = X.Prog [
+      make_struct;
       X.FuncDecl (
         X.Int,
         (X.Ident "square"),
@@ -199,6 +209,7 @@ module Translator_tests =
         X.Block ([
           decl_expr;
           decl_assign_expr;
+          ptr_decl;
           decl_calc_int_expr;
           X.ExprStmt (square_call, _pos);
           X.Return (square_call, _pos);
