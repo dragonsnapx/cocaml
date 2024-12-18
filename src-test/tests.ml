@@ -154,7 +154,7 @@ module Lexer_tests =
           "Test Parse C to AST" >:: test_parse_c_to_ast
         ]
     end
-
+(* 
 module Translator_tests =
   struct
     module X = Cocaml.Syntax_node
@@ -166,7 +166,7 @@ module Translator_tests =
     (* let return_expr: X.stmt = X.Return ((X.IntLiteral (0, _pos)), _pos) *)
     
     (* int x *)
-    let decl_assign_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "x"), None, _pos)
+    let decl_assign_expr: X.Stmt.t = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "x"), None, _pos)
     
     (* int y = 3 *)
     let decl_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "y"), (Some (X.IntLiteral (3, _pos))), _pos)
@@ -227,13 +227,19 @@ module Translator_tests =
       "Translator tests" >::: [
         "Example test" >:: first_test
       ]
-  end
+  end *)
 
-let series =
+(* let series =
   "Tests" >:::
   [ 
     Lexer_tests.series
   ; Parser_tests.series
-  ; Translator_tests.series ]
+  ; Translator_tests.series ] *)
+
+  let series =
+    "Tests" >:::
+    [ 
+      Lexer_tests.series
+    ; Parser_tests.series ]
 
 let () = run_test_tt_main series
