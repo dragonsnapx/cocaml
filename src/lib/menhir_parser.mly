@@ -1,7 +1,9 @@
 %{
+  open Syntax_node
+
   (* Helper function to unwrap Lexing positions *)
   let make_position (startpos: Lexing.position) (endpos: Lexing.position)  =
-    Syntax_node.create_position startpos.pos_cnum endpos.pos_cnum
+    Positon.create startpos.pos_cnum endpos.pos_cnum
 
   exception ParserError of string * Lexing.position
 
@@ -46,20 +48,6 @@
 (* Main type from Syntax_node *)
 %type <Syntax_node.prog> program
 
-(* Other types -- we currently have some types without corresponding types in Syntax_node *)
-%type <Syntax_node.decl list> decl_list
-%type <Syntax_node.decl> decl
-%type <Syntax_node.expr> expr
-%type <Syntax_node.expr list> expr_list
-%type <Syntax_node.bin_op> bin_ops
-%type <Syntax_node.prefix_un_op> prefix_un_ops
-%type <Syntax_node.postfix_un_op> postfix_un_ops
-%type <Syntax_node.stmt> stmt
-%type <Syntax_node.stmt list> stmt_list
-%type <Syntax_node.case> case
-%type <Syntax_node.case list> case_list
-%type <Syntax_node.vartype> type_spec
-
 (* Entry point *)
 %start program
 
@@ -70,8 +58,69 @@
  * All statements, expressions, and other lower-level components should occur within these declarations.
  *)
 program:
-  | decl_list EOF { Syntax_node.Prog $1 }
+  | decl_list EOF { Prog $1 }
 
+
+(****************************)
+(* Part #0: Shared Types    *)
+(****************************)
+
+is_static:
+  | STATIC {
+      Is_static true
+    }
+  | {
+      Is_static false
+    }
+
+var_decl_list:
+  | { [] }
+  | var_decl_list var_decl { $1 @ [$2] }
+
+var_decl:
+  | is_static type_spec IDENT {
+      (* Example: static int x; *)
+      Var_decl ($1, $2, Ident $3, None, make_position $startpos $endpos)
+    }
+  | is_static type_spec IDENT ASSIGN expr {
+      (* Example: static int x = 42; *)
+      Var_decl ($1, $2, Ident $3, Some $5, make_position $startpos $endpos)
+    }
+  | is_static type_spec IDENT LBRACKET INT_LITERAL RBRACKET {
+      (* Example: static int arr[5]; *)
+      Var_decl ($1, VarType.Array ($2, Some $5), Ident $3, None, make_position $startpos $endpos)
+    }
+  | is_static type_spec IDENT LBRACKET INT_LITERAL RBRACKET ASSIGN expr {
+      (* Example: static int arr[5] = {1, 2, 3, 4, 5}; *)
+      Var_decl ($1, VarType.Array ($2, Some $5), Ident $3, Some $8, make_position $startpos $endpos)
+    }
+
+typedef_decl:
+  | TYPEDEF type_spec IDENT SEMI {
+      (* Example: typedef int MyInt; *)
+      Typedef_decl ($2, Ident $3, make_position $startpos $endpos)
+    }
+
+struct_decl:
+  | STRUCT IDENT LBRACE var_decl_list RBRACE SEMI {
+      (* Example: struct Point { int x; int y; }; *)
+      Struct_decl (Ident $2, Ident $2, Some $4, make_position $startpos $endpos)
+    }
+  | STRUCT IDENT SEMI {
+      (* Example: struct Point; *)
+      Struct_decl (Ident $2, Ident $2, None, make_position $startpos $endpos)
+    }
+
+struct_init:
+  | STRUCT IDENT IDENT SEMI {
+      (* Example: struct Point p; *)
+      Struct_init (Ident $2, Ident $3, None, make_position $startpos $endpos)
+    }
+  | STRUCT IDENT IDENT ASSIGN expr SEMI {
+      (* Example: struct Point p = {1, 2}; *)
+      Struct_init (Ident $2, Ident $3, Some $5, make_position $startpos $endpos)
+    }
+  
 
 (****************************)
 (* Part #1: Declarations    *)
@@ -82,39 +131,36 @@ decl_list:
   | decl_list decl { $1 @ [$2] } 
 
 decl:
-  | STATIC type_spec IDENT SEMI {
-      Syntax_node.GlobalVarDecl (Syntax_node.Is_static true, $2, Syntax_node.Ident $3, None, make_position $startpos $endpos)
-  }
-  | STATIC type_spec IDENT ASSIGN expr SEMI {
-      Syntax_node.GlobalVarDecl (Syntax_node.Is_static true, $2, Syntax_node.Ident $3, Some $5, make_position $startpos $endpos)
+  (* Shared Cases *)
+  | var_decl {
+      Decl.VarDecl $1
     }
-  | type_spec IDENT SEMI {
-      Syntax_node.GlobalVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, None, make_position $startpos $endpos)
+  | typedef_decl {
+      Decl.TypedefDecl $1
     }
-  | type_spec IDENT ASSIGN expr SEMI {
-      Syntax_node.GlobalVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, Some $4, make_position $startpos $endpos)
+  | struct_decl {
+      Decl.StructDecl $1
     }
+
+  (* Function Declarations *)
   | type_spec IDENT LPAREN param_list RPAREN stmt_block {
-      Syntax_node.FuncDecl ($1, Syntax_node.Ident $2, $4, $6, make_position $startpos $endpos)
+      (* Example: int add(int a, int b) { ... } *)
+      Decl.FuncDecl ($1, Ident $2, $4, $6, make_position $startpos $endpos)
     }
-  | TYPEDEF type_spec IDENT SEMI {
-      Syntax_node.TypedefDecl ($2, Syntax_node.Ident $3, make_position $startpos $endpos)
-    }
-  | STRUCT IDENT LBRACE decl_list RBRACE SEMI {
-      Syntax_node.StructDecl (Syntax_node.Ident $2, $4, make_position $startpos $endpos)
-    }
+
+  (* Error Handling *)
   | error SEMI {
       raise_parser_error "Invalid declaration" $startpos
-  }
+    }
 
-(* Function parameters *)
+(* Function Parameters *)
 param_list:
   | { [] }
   | param_list_non_empty { $1 }
 
 param_list_non_empty:
-  | type_spec IDENT { [($1, Syntax_node.Ident $2)] }
-  | param_list_non_empty COMMA type_spec IDENT { $1 @ [($3, Syntax_node.Ident $4)] }
+  | type_spec IDENT { [($1, Ident $2)] }
+  | param_list_non_empty COMMA type_spec IDENT { $1 @ [($3, Ident $4)] }
 
 
 (****************************)
@@ -134,71 +180,83 @@ stmt_list:
   | stmt_list stmt { $1 @ [$2] }
 
 stmt:
-  | STRUCT IDENT IDENT SEMI {
-      Syntax_node.StructVarDecl (Syntax_node.Ident $2, Syntax_node.Ident $3, make_position $startpos $endpos)
+  (* Shared Cases *)
+  | struct_decl {
+      Stmt.StructDecl $1
     }
-  | STRUCT IDENT IDENT ASSIGN expr SEMI {
-      Syntax_node.StructVarDeclInit (Syntax_node.Ident $2, Syntax_node.Ident $3, $5, make_position $startpos $endpos)
+  | typedef_decl {
+      Stmt.TypedefDecl $1
     }
+  | var_decl SEMI {
+      Stmt.VarDecl $1
+    }
+
+  (* Return Statements *)
   | RETURN expr SEMI {
-      Syntax_node.Return ($2, make_position $startpos $endpos)
+      Stmt.Return ($2, make_position $startpos $endpos)
     }
+
+  (* If Statements *)
   | IF LPAREN expr RPAREN stmt ELSE stmt {
-      Syntax_node.If ($3, $5, Some $7, make_position $startpos $endpos)
+      Stmt.If ($3, $5, Some $7, make_position $startpos $endpos)
     }
   | IF LPAREN expr RPAREN stmt {
-      Syntax_node.If ($3, $5, None, make_position $startpos $endpos)
+      Stmt.If ($3, $5, None, make_position $startpos $endpos)
     }
-  | WHILE LPAREN expr RPAREN stmt {
-      Syntax_node.While ($3, $5, make_position $startpos $endpos)
-    }
-  | FOR LPAREN for_init SEMI expr SEMI expr RPAREN stmt {
-      Syntax_node.For ($3, $5, $7, $9, make_position $startpos $endpos)
-    }
-  | expr SEMI {
-      Syntax_node.ExprStmt ($1, make_position $startpos $endpos)
-    }
-  | stmt_block {
-      $1 (* Used for nested statements -- i.e. if, while, etc. *)
-    }
-  | SWITCH LPAREN expr RPAREN LBRACE case_list RBRACE {
-      Syntax_node.Switch ($3, $6, make_position $startpos $endpos)
-    }
+
+  (* Do-while Loops *)
   | DO stmt WHILE LPAREN expr RPAREN SEMI {
-      Syntax_node.DoWhile ($2, $5, make_position $startpos $endpos)
+      Stmt.DoWhile ($2, $5, make_position $startpos $endpos)
     }
+
+  (* While Loops *)
+  | WHILE LPAREN expr RPAREN stmt {
+      Stmt.While ($3, $5, make_position $startpos $endpos)
+    }
+
+  (* For Loops *)
+  | FOR LPAREN for_init SEMI expr SEMI expr RPAREN stmt {
+      Stmt.For ($3, $5, $7, $9, make_position $startpos $endpos)
+    }
+
+  (* Break Statement *)
   | BREAK SEMI {
-      Syntax_node.Break (make_position $startpos $endpos)
+      Stmt.Break (make_position $startpos $endpos)
     }
+
+  (* Continue Statement *)
   | CONTINUE SEMI {
-      Syntax_node.Continue (make_position $startpos $endpos)
+      Stmt.Continue (make_position $startpos $endpos)
     }
-  | type_spec IDENT SEMI {
-      Syntax_node.LocalVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, None, make_position $startpos $endpos)
+
+  (* Switch Statements *)
+  | SWITCH LPAREN expr RPAREN LBRACE case_list RBRACE {
+      Stmt.Switch ($3, $6, make_position $startpos $endpos)
     }
-  | type_spec IDENT ASSIGN expr SEMI {
-      Syntax_node.LocalVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, Some $4, make_position $startpos $endpos)
+
+  (* Expression Statements *)
+  | expr SEMI {
+      Stmt.ExprStmt ($1, make_position $startpos $endpos)
     }
-  | STATIC type_spec IDENT SEMI {
-      Syntax_node.LocalVarDecl (Syntax_node.Is_static true, $2, Syntax_node.Ident $3, None, make_position $startpos $endpos)
+
+  (* Nested Blocks *)
+  | stmt_block {
+      $1
     }
-  | STATIC type_spec IDENT ASSIGN expr SEMI {
-      Syntax_node.LocalVarDecl (Syntax_node.Is_static true, $2, Syntax_node.Ident $3, Some $5, make_position $startpos $endpos)
-    }
+
+  (* Error Handling *)
   | error SEMI {
       raise_parser_error "Invalid statement" $startpos
     }
 
+
 (* For-loop initializer can be either a variable declaration or assignment *)
 for_init:
   | expr {
-      Syntax_node.ForExpr $1
+      Stmt.ForExpr $1
     }
-  | type_spec IDENT ASSIGN expr {
-      Syntax_node.ForVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, Some $4)
-    }
-  | type_spec IDENT {
-      Syntax_node.ForVarDecl (Syntax_node.Is_static false, $1, Syntax_node.Ident $2, None)
+  | var_decl {
+      Stmt.ForVarDecl $1
     }
 
 (* Cases for switch statements *)
@@ -208,11 +266,12 @@ case_list:
 
 case:
   | CASE expr COLON stmt_list {
-      Syntax_node.Case ($2, $4, make_position $startpos $endpos)
+      Stmt.Case ($2, $4, make_position $startpos $endpos)
     }
   | DEFAULT COLON stmt_list {
-      Syntax_node.Default ($3, make_position $startpos $endpos)
+      Stmt.Default ($3, make_position $startpos $endpos)
     }
+
 
 (*****************************)
 (* Part #3: Expressions      *)
@@ -223,46 +282,46 @@ case:
  *)
 expr:
   | INT_LITERAL {
-      Syntax_node.IntLiteral ($1, make_position $startpos $endpos)
+      Expr.IntLiteral ($1, make_position $startpos $endpos)
     }
   | LONG_LITERAL {
-      Syntax_node.LongLiteral ($1, make_position $startpos $endpos)
+      Expr.LongLiteral ($1, make_position $startpos $endpos)
     }
   | FLOAT_LITERAL {
-      Syntax_node.FloatLiteral ($1, make_position $startpos $endpos)
+      Expr.FloatLiteral ($1, make_position $startpos $endpos)
     }
   | CHAR_LITERAL {
-      Syntax_node.CharLiteral ($1, make_position $startpos $endpos)
+      Expr.CharLiteral ($1, make_position $startpos $endpos)
     }
   | STRING_LITERAL {
-      Syntax_node.StringLiteral ($1, make_position $startpos $endpos)
+      Expr.StringLiteral ($1, make_position $startpos $endpos)
     }
   | expr DOT IDENT {
-      Syntax_node.MemberAccess ($1, Syntax_node.Ident $3, make_position $startpos $endpos)
+      Expr.MemberAccess ($1, Ident $3, make_position $startpos $endpos)
     }
   | expr ARROW IDENT {
-      Syntax_node.PointerMemberAccess ($1, Syntax_node.Ident $3, make_position $startpos $endpos)
+      Expr.PointerMemberAccess ($1, Ident $3, make_position $startpos $endpos)
     }
   | expr LBRACKET expr RBRACKET {
-      Syntax_node.ArrayAccess ($1, $3, make_position $startpos $endpos)
+      Expr.ArrayAccess ($1, $3, make_position $startpos $endpos)
     }
   | IDENT {
-      Syntax_node.Var (Syntax_node.Ident $1, make_position $startpos $endpos)
+      Expr.Var (Ident $1, make_position $startpos $endpos)
     }
   | IDENT ASSIGN expr {
-      Syntax_node.Assign (Syntax_node.Ident $1, $3, make_position $startpos $endpos)
+      Expr.Assign (Ident $1, $3, make_position $startpos $endpos)
     }
   | IDENT LPAREN arg_list RPAREN {
-      Syntax_node.Call (Syntax_node.Ident $1, $3, make_position $startpos $endpos)
+      Expr.Call (Ident $1, $3, make_position $startpos $endpos)
     }
   | expr bin_ops expr {
-      Syntax_node.BinOp ($2, $1, $3, make_position $startpos $endpos)
+      Expr.BinOp ($2, $1, $3, make_position $startpos $endpos)
     }
   | prefix_un_ops expr {
-      Syntax_node.PrefixUnOp ($1, $2, make_position $startpos $endpos)
+      Expr.PrefixUnOp ($1, $2, make_position $startpos $endpos)
     }
   | expr postfix_un_ops {
-      Syntax_node.PostfixUnOp ($1, $2, make_position $startpos $endpos)
+      Expr.PostfixUnOp ($1, $2, make_position $startpos $endpos)
     }
   | LPAREN expr RPAREN {
       $2
@@ -270,6 +329,7 @@ expr:
   | error {
       raise_parser_error "Invalid expression" $startpos
     }
+
 
 (* Arguments for function calls *)
 arg_list:
@@ -289,54 +349,54 @@ expr_list:
  * Note: Atomic units of our grammar. Every token in our lexer should be matched to at least one of these 
  *)
 type_spec:
-  | INT { Syntax_node.Int }
-  | FLOAT { Syntax_node.Float }
-  | CHAR { Syntax_node.Char }
-  | DOUBLE { Syntax_node.Double }
-  | LONG { Syntax_node.Long }
-  | VOID { Syntax_node.Void }
-  | STRUCT IDENT { Syntax_node.Struct (Syntax_node.Ident $2) }
-  | IDENT { Syntax_node.Typedef (Syntax_node.Ident $1) }
+  | INT                                   { VarType.Int }
+  | FLOAT                                 { VarType.Float }
+  | CHAR                                  { VarType.Char }
+  | DOUBLE                                { VarType.Double }
+  | LONG                                  { VarType.Long }
+  | VOID                                  { VarType.Void }
+  | STRUCT IDENT                          { VarType.Struct (Ident $2) }
+  | IDENT                                 { VarType.Typedef (Ident $1) }
 
 bin_ops:
-  | PLUS { Syntax_node.Plus }
-  | MINUS { Syntax_node.Minus }
-  | STAR { Syntax_node.Times }
-  | SLASH { Syntax_node.Divide }
-  | PERCENT { Syntax_node.Modulo }
-  | LEFT_SHIFT { Syntax_node.LeftShift }
-  | RIGHT_SHIFT { Syntax_node.RightShift }
-  | EQUAL { Syntax_node.Equal }
-  | NOT_EQUAL { Syntax_node.NotEqual }
-  | LESS_THAN { Syntax_node.Less }
-  | LESS_EQUAL { Syntax_node.LessEqual }
-  | GREATER_THAN { Syntax_node.Greater }
-  | GREATER_EQUAL { Syntax_node.GreaterEqual }
-  | AND { Syntax_node.LogicalAnd }
-  | OR { Syntax_node.LogicalOr }
-  | BIT_OR { Syntax_node.BitwiseOr }
-  | BIT_XOR { Syntax_node.BitwiseXor }
-  | AMPERSAND { Syntax_node.BitwiseAnd }
-  | PLUS_EQUAL { Syntax_node.PlusAssign }
-  | MINUS_EQUAL { Syntax_node.MinusAssign }
-  | STAR_EQUAL { Syntax_node.TimesAssign }
-  | SLASH_EQUAL { Syntax_node.DivideAssign }
-  | PERCENT_EQUAL { Syntax_node.ModuloAssign }
-  | AMPERSAND_EQUAL { Syntax_node.BitwiseAndAssign }
-  | BIT_OR_EQUAL { Syntax_node.BitwiseOrAssign }
-  | BIT_XOR_EQUAL { Syntax_node.BitwiseXorAssign }
+  | PLUS                                  { Expr.Plus }
+  | MINUS                                 { Expr.Minus }
+  | STAR                                  { Expr.Times }
+  | SLASH                                 { Expr.Divide }
+  | PERCENT                               { Expr.Modulo }
+  | LEFT_SHIFT                            { Expr.LeftShift }
+  | RIGHT_SHIFT                           { Expr.RightShift }
+  | EQUAL                                 { Expr.Equal }
+  | NOT_EQUAL                             { Expr.NotEqual }
+  | LESS_THAN                             { Expr.Less }
+  | LESS_EQUAL                            { Expr.LessEqual }
+  | GREATER_THAN                          { Expr.Greater }
+  | GREATER_EQUAL                         { Expr.GreaterEqual }
+  | AND                                   { Expr.LogicalAnd }
+  | OR                                    { Expr.LogicalOr }
+  | BIT_OR                                { Expr.BitwiseOr }
+  | BIT_XOR                               { Expr.BitwiseXor }
+  | AMPERSAND                             { Expr.BitwiseAnd }
+  | PLUS_EQUAL                            { Expr.PlusAssign }
+  | MINUS_EQUAL                           { Expr.MinusAssign }
+  | STAR_EQUAL                            { Expr.TimesAssign }
+  | SLASH_EQUAL                           { Expr.DivideAssign }
+  | PERCENT_EQUAL                         { Expr.ModuloAssign }
+  | AMPERSAND_EQUAL                       { Expr.BitwiseAndAssign }
+  | BIT_OR_EQUAL                          { Expr.BitwiseOrAssign }
+  | BIT_XOR_EQUAL                         { Expr.BitwiseXorAssign }
 
 prefix_un_ops:
-  | PLUS { Syntax_node.Positive}
-  | MINUS { Syntax_node.Negative }
-  | NOT { Syntax_node.LogicalNot }
-  | STAR { Syntax_node.Dereference }
-  | AMPERSAND { Syntax_node.Address }
-  | BIT_NOT { Syntax_node.BitwiseNot }
-  | INCREMENT { Syntax_node.PrefixIncrement }
-  | DECREMENT { Syntax_node.PrefixDecrement }
+  | PLUS                                  { Expr.Positive }
+  | MINUS                                 { Expr.Negative }
+  | NOT                                   { Expr.LogicalNot }
+  | STAR                                  { Expr.Dereference }
+  | AMPERSAND                             { Expr.Address }
+  | BIT_NOT                               { Expr.BitwiseNot }
+  | INCREMENT                             { Expr.PrefixIncrement }
+  | DECREMENT                             { Expr.PrefixDecrement }
 
 postfix_un_ops:
-  | INCREMENT { Syntax_node.PostfixIncrement }
-  | DECREMENT { Syntax_node.PostfixDecrement }
+  | INCREMENT                             { Expr.PostfixIncrement }
+  | DECREMENT                             { Expr.PostfixDecrement }
   
