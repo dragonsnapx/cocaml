@@ -3,14 +3,8 @@ open Cocaml
 open Lexing
 open Parser_error_handler 
 open Translator.TranslateFile
-open Sys_unix
-
-let unimplemented () = ()
 
 let ignore _ = ()
-
-let compile (_filename: string) (_flags: (string * string) list) = 
-  unimplemented()  
 
 let parse_c_to_ast (filename: string) : Syntax_node.prog =
   let lexbuf = from_channel (In_channel.create filename) in
@@ -33,5 +27,10 @@ let compile_llvm (filename: string) : bool =
   |> generate_llvm_ir
   |> ignore;
   print_module_to_file "./result.ll";
-  Sys_unix.command "lli ./result.ll" |> ignore;
+  Sys_unix.command "llc ./result.ll" |> ignore;
+  Sys_unix.command "clang ./result.s -o result_exec" |> ignore;
   true
+
+let compile (_filename: string) (_flags: (string * string) list) = 
+  compile_llvm _filename |> ignore
+  
