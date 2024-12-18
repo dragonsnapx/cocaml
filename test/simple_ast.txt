@@ -1,0 +1,15 @@
+(Prog
+ ((FuncDecl Int (Ident main) ()
+   (Block
+    ((VarDecl
+      (Var_decl (Is_static false) Int (Ident y) ()
+       ((pos_start 15) (pos_end 21))))
+     (ExprStmt
+      (Assign (Var (Ident y) ((pos_start 24) (pos_end 25)))
+       (IntLiteral 5 ((pos_start 28) (pos_end 29)))
+       ((pos_start 24) (pos_end 29)))
+      ((pos_start 24) (pos_end 30)))
+     (Return (Var (Ident y) ((pos_start 40) (pos_end 41)))
+      ((pos_start 33) (pos_end 42))))
+    ((pos_start 11) (pos_end 44)))
+   ((pos_start 0) (pos_end 44)))))

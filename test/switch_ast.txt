@@ -1,0 +1,42 @@
+(Prog
+ ((FuncDecl Int (Ident main) ()
+   (Block
+    ((VarDecl
+      (Var_decl (Is_static false) Int (Ident x)
+       ((IntLiteral 2 ((pos_start 23) (pos_end 24))))
+       ((pos_start 15) (pos_end 25))))
+     (VarDecl
+      (Var_decl (Is_static false) Int (Ident y)
+       ((IntLiteral 0 ((pos_start 36) (pos_end 37))))
+       ((pos_start 28) (pos_end 38))))
+     (Switch (Var (Ident x) ((pos_start 49) (pos_end 50)))
+      ((Case (IntLiteral 1 ((pos_start 63) (pos_end 64)))
+        ((ExprStmt
+          (Assign (Var (Ident y) ((pos_start 72) (pos_end 73)))
+           (IntLiteral 42 ((pos_start 76) (pos_end 78)))
+           ((pos_start 72) (pos_end 78)))
+          ((pos_start 72) (pos_end 79)))
+         (Break ((pos_start 86) (pos_end 92))))
+        ((pos_start 58) (pos_end 92)))
+       (Case (IntLiteral 2 ((pos_start 102) (pos_end 103)))
+        ((ExprStmt
+          (Assign (Var (Ident y) ((pos_start 111) (pos_end 112)))
+           (IntLiteral 99 ((pos_start 115) (pos_end 117)))
+           ((pos_start 111) (pos_end 117)))
+          ((pos_start 111) (pos_end 118)))
+         (Break ((pos_start 125) (pos_end 131))))
+        ((pos_start 97) (pos_end 131)))
+       (Default
+        ((ExprStmt
+          (Assign (Var (Ident y) ((pos_start 151) (pos_end 152)))
+           (PrefixUnOp Negative
+            (IntLiteral 1 ((pos_start 156) (pos_end 157)))
+            ((pos_start 155) (pos_end 157)))
+           ((pos_start 151) (pos_end 157)))
+          ((pos_start 151) (pos_end 158))))
+        ((pos_start 136) (pos_end 158))))
+      ((pos_start 41) (pos_end 162)))
+     (Return (Var (Ident y) ((pos_start 172) (pos_end 173)))
+      ((pos_start 165) (pos_end 174))))
+    ((pos_start 11) (pos_end 176)))
+   ((pos_start 0) (pos_end 176)))))

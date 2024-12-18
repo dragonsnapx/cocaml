@@ -1,0 +1,36 @@
+(Prog
+ ((FuncDecl Int (Ident main) ()
+   (Block
+    ((VarDecl
+      (Var_decl (Is_static false) Int (Ident x)
+       ((IntLiteral 0 ((pos_start 23) (pos_end 24))))
+       ((pos_start 15) (pos_end 25))))
+     (For
+      (ForVarDecl
+       (Var_decl (Is_static false) Int (Ident i)
+        ((IntLiteral 0 ((pos_start 41) (pos_end 42))))
+        ((pos_start 33) (pos_end 43))))
+      (BinOp Less (Var (Ident i) ((pos_start 44) (pos_end 45)))
+       (IntLiteral 10 ((pos_start 48) (pos_end 50)))
+       ((pos_start 44) (pos_end 50)))
+      (BinOp Plus
+       (Assign (Var (Ident i) ((pos_start 52) (pos_end 53)))
+        (Var (Ident i) ((pos_start 56) (pos_end 57)))
+        ((pos_start 52) (pos_end 57)))
+       (IntLiteral 1 ((pos_start 60) (pos_end 61)))
+       ((pos_start 52) (pos_end 61)))
+      (Block
+       ((ExprStmt
+         (BinOp Plus
+          (Assign (Var (Ident x) ((pos_start 69) (pos_end 70)))
+           (Var (Ident x) ((pos_start 73) (pos_end 74)))
+           ((pos_start 69) (pos_end 74)))
+          (Var (Ident i) ((pos_start 77) (pos_end 78)))
+          ((pos_start 69) (pos_end 78)))
+         ((pos_start 69) (pos_end 79))))
+       ((pos_start 63) (pos_end 83)))
+      ((pos_start 28) (pos_end 83)))
+     (Return (Var (Ident x) ((pos_start 93) (pos_end 94)))
+      ((pos_start 86) (pos_end 95))))
+    ((pos_start 11) (pos_end 97)))
+   ((pos_start 0) (pos_end 97)))))
