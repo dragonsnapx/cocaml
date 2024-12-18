@@ -3,7 +3,7 @@
 
   (* Helper function to unwrap Lexing positions *)
   let make_position (startpos: Lexing.position) (endpos: Lexing.position)  =
-    Positon.create startpos.pos_cnum endpos.pos_cnum
+    Position.create startpos.pos_cnum endpos.pos_cnum
 
   exception ParserError of string * Lexing.position
 
@@ -141,6 +141,9 @@ decl:
   | struct_decl {
       Decl.StructDecl $1
     }
+  | struct_init {
+      Decl.StructInit $1
+    }
 
   (* Function Declarations *)
   | type_spec IDENT LPAREN param_list RPAREN stmt_block {
@@ -160,7 +163,7 @@ param_list:
 
 param_list_non_empty:
   | type_spec IDENT { [($1, Ident $2)] }
-  | param_list_non_empty COMMA type_spec IDENT { $1 @ [($3, Ident $4)] }
+  | param_list_non_empty COMMA type_spec IDENT { $1 @ [($3, Ident.create $4)] }
 
 
 (****************************)
@@ -173,7 +176,7 @@ param_list_non_empty:
  *)
 
 stmt_block:
-  | LBRACE stmt_list RBRACE { Syntax_node.Block ($2, make_position $startpos $endpos) }
+  | LBRACE stmt_list RBRACE { Stmt.Block ($2, make_position $startpos $endpos) }
 
 stmt_list:
   | { [] }
@@ -183,6 +186,9 @@ stmt:
   (* Shared Cases *)
   | struct_decl {
       Stmt.StructDecl $1
+    }
+  | struct_init {
+      Stmt.StructInit $1
     }
   | typedef_decl {
       Stmt.TypedefDecl $1

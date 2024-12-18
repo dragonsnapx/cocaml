@@ -12,6 +12,8 @@ module Ident :
   (* Encompass names of variables, functions, etc. *)
   sig
     type t = Ident of string [@@deriving compare, sexp, hash, equal, show]
+
+    val create: string -> t
   end
 
 module VarType :
@@ -136,18 +138,19 @@ module Stmt :
       | Continue of Position.t
       | DoWhile of t * Expr.t * Position.t
       | VarDecl of var_decl
-      | StructDecl of struct_decl
       | TypedefDecl of typedef_decl
+      | StructDecl of struct_decl
+      | StructInit of struct_init
     [@@deriving compare, sexp, equal, show]
 
-    type for_init =
-      | ForExpr of Expr.t                                                                (* Example: for (x = 0; ...) *)                              
-      | ForVarDecl of var_decl                                                           (* Example: for (int x = 0; ...) *)                   
-    [@@deriving compare, sexp, equal, show]
-
-    type case =
+    and case =
       | Case of Expr.t * t list * Position.t
       | Default of t list * Position.t
+    [@@deriving compare, sexp, equal, show]
+
+    and for_init =
+      | ForExpr of Expr.t                                                                (* Example: for (x = 0; ...) *)                              
+      | ForVarDecl of var_decl                                                           (* Example: for (int x = 0; ...) *)                   
     [@@deriving compare, sexp, equal, show]
   end
 
@@ -157,8 +160,9 @@ module Decl :
     type t =    
       | VarDecl of var_decl 
       | FuncDecl of VarType.t * Ident.t * (VarType.t * Ident.t) list * Stmt.t * Position.t
-      | StructDecl of struct_decl
       | TypedefDecl of typedef_decl
+      | StructDecl of struct_decl
+      | StructInit of struct_init
     [@@deriving compare, sexp, equal, show]
   end
 
