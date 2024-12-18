@@ -7,8 +7,8 @@ module F = Stack_frame.StackFrame
 module DefinedFunc = struct
   type t = {
     fn: L.llvalue;
-    fnvtp: S.vartype;
-    name: S.ident;
+    fnvtp: S.VarType.t;
+    name: S.Ident.t;
     returns: L.lltype;
     returns_to: L.llbasicblock;
   }
@@ -22,19 +22,19 @@ module TranslateFile =
 struct
   module C = Cocaml_llvm.Make(DefaultParameter)
 
-  let htbl_functions: (S.ident, DefinedFunc.t) Hashtbl.t = Hashtbl.Poly.create ()
-  let htbl_types: (S.ident, L.lltype) Hashtbl.t = Hashtbl.Poly.create ()
-  let htbl_structs: (S.ident, (S.ident * S.vartype) list) Hashtbl.t = Hashtbl.Poly.create ()
+  let htbl_functions: (S.Ident.t, DefinedFunc.t) Hashtbl.t = Hashtbl.Poly.create ()
+  let htbl_types: (S.Ident.t, L.lltype) Hashtbl.t = Hashtbl.Poly.create ()
+  let htbl_structs: (S.Ident.t, (S.Ident.t * S.VarType.t) list) Hashtbl.t = Hashtbl.Poly.create ()
 
   let var_env = F.create()
 
   let nil_return_type = L.const_null (L.i32_type C.context)
 
-  let ident_to_string (ident: S.ident): string =
+  let ident_to_string (ident: S.Ident.t): string =
     match ident with
     | Ident s -> s
 
-  let rec llvartype_of_vartype (tp: S.vartype): L.lltype =
+  let rec llvartype_of_vartype (tp: S.VarType.t): L.lltype =
     match tp with
     | Int -> C.ll_int_t
     | Float -> C.ll_float_t
@@ -52,7 +52,7 @@ struct
       end
     | Struct str -> Hashtbl.find_exn htbl_types str
 
-  let rec expr_to_vartype (expr: S.expr): S.vartype =
+  let rec expr_to_vartype (expr: S.Expr.t): S.VarType.t =
     match expr with
     | IntLiteral _ -> S.Int
     | FloatLiteral _ -> S.Float
@@ -117,7 +117,7 @@ struct
       end
     | PostfixUnOp (expr, postfix_un_op, _) -> expr_to_vartype expr
 
-  let extract_expr_value (expr: S.expr): L.llvalue =
+  let extract_expr_value (expr: S.Expr.t): L.llvalue =
     match expr with
     | IntLiteral (i, _) -> C.const_ll_int_t i
     | FloatLiteral (f, _) -> C.const_ll_float_t f
@@ -138,7 +138,7 @@ struct
     |> L.builder_at C.context
 
 
-  let rec declare_function (label: S.ident) (returns: S.vartype) (params: (S.vartype * S.ident) list) (body: S.stmt) =
+  let rec declare_function (label: S.Ident.t) (returns: S.VarType.t) (params: (S.VarType.t * S.Ident.t) list) (body: S.stmt) =
     F.enter_block var_env;
     let params_ll_value = 
       List.map params ~f:(fun elt -> elt |> fst |> llvartype_of_vartype) 
@@ -163,7 +163,7 @@ struct
     Hashtbl.set htbl_functions ~key:label ~data:{ name = label; fn = fn; fnvtp = returns; returns = func_type; returns_to = entry_block };
     fn
 
-  and parse_expr (expr: S.expr) (scoped_fn: L.llvalue): L.llvalue =
+  and parse_expr (expr: S.Expr.t) (scoped_fn: L.llvalue): L.llvalue =
     let parse_expr expr = parse_expr expr scoped_fn in
     match expr with
     | IntLiteral (i, _) -> C.const_ll_int_t i
@@ -269,7 +269,9 @@ struct
         | None -> C.raise_transl_err @@ "Cannot find function call to function: " ^ (ident_to_string id)
       end
     | PrefixUnOp (prefix_un_op, e, _) -> failwith "TODO"
-    | PostfixUnOp (ex, postfix_un_op, _) -> failwith "TODO"
+    | PostfixUnOp (ex, postfix_un_op, _) -> 
+      match postfix_un_op with
+      | _ -> failwith "OK"
 
   and parse_stmt (stmt: S.stmt) (scoped_fn: L.llvalue): L.llvalue =
     let parse_expr stmt = parse_expr stmt scoped_fn in
@@ -452,7 +454,7 @@ struct
       );
       nil_return_type
 
-  let parse_decl (decl: S.decl) (scoped_fn: L.llvalue option): L.llvalue =
+  let parse_decl (decl: S.Decl.t) (scoped_fn: L.llvalue option): L.llvalue =
     match decl with
     | GlobalVarDecl (is_static, vartype, ident, expr, position) -> begin
         match expr with
