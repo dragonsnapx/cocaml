@@ -154,65 +154,75 @@ module Lexer_tests =
           "Test Parse C to AST" >:: test_parse_c_to_ast
         ]
     end
-(* 
+
 module Translator_tests =
   struct
     module X = Cocaml.Syntax_node
     module M = Cocaml.Translator.TranslateFile
-    let _pos: X.position = { pos_start = 5; pos_end = 12 }
+    let _pos: X.Position.t = { pos_start = 5; pos_end = 12 }
 
     let ignore _ = ()
 
     (* let return_expr: X.stmt = X.Return ((X.IntLiteral (0, _pos)), _pos) *)
     
+    let id_x = X.Ident.create("x")
+    let id_y = X.Ident.create("y")
+    let id_z = X.Ident.create("z")
+    let id_p = X.Ident.create("p")
+
     (* int x *)
-    let decl_assign_expr: X.Stmt.t = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "x"), None, _pos)
+    let decl_assign_expr = X.Stmt.VarDecl (X.Var_decl ((X.Is_static false), X.VarType.Int, id_x, None, _pos))
     
     (* int y = 3 *)
-    let decl_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "y"), (Some (X.IntLiteral (3, _pos))), _pos)
+    let decl_expr = X.Stmt.VarDecl (X.Var_decl ((X.Is_static false), X.VarType.Int, id_y, (Some (X.Expr.IntLiteral (3, _pos))), _pos))
 
     (* int* p = x *)
-    let ptr_decl: X.stmt = X.LocalVarDecl((X.Is_static false), (X.Pointer X.Int), (X.Ident "p"), (Some (X.PrefixUnOp (X.Dereference, X.Var (X.Ident "x", _pos), _pos) )), _pos)
+    let ptr_decl = X.Stmt.VarDecl(
+      X.Var_decl ((X.Is_static false), 
+      (X.VarType.Pointer X.VarType.Int), 
+      id_p, 
+      (Some (X.Expr.PrefixUnOp (X.Expr.Dereference, X.Expr.Var (id_x, _pos), _pos) )), 
+      _pos))
 
-    let bin_op_plus: X.expr = X.BinOp (X.Plus, (X.IntLiteral (3, _pos)), (X.IntLiteral (4, _pos)), _pos)
-    let decl_calc_int_expr: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "z"), Some bin_op_plus, _pos)
+    let bin_op_plus = X.Expr.BinOp (X.Expr.Plus, (X.Expr.IntLiteral (3, _pos)), (X.Expr.IntLiteral (4, _pos)), _pos)
+    let decl_calc_int_expr = X.Stmt.VarDecl (X.Var_decl ((X.Is_static false), X.VarType.Int, id_z, Some bin_op_plus, _pos))
 
-    let square_expr: X.expr = X.BinOp (X.Times, (X.Var ((X.Ident "x"), _pos)), (X.Var ((X.Ident "x"), _pos)), _pos)
-    let make_square: X.stmt = X.LocalVarDecl ((X.Is_static false), X.Int, (X.Ident "y"), (Some square_expr), _pos)
-    let return_square: X.stmt = X.Return ((X.Var ((X.Ident "y"), _pos)), _pos)
+    let square_expr = X.Expr.BinOp (X.Expr.Times, (X.Expr.Var (id_x, _pos)), (X.Expr.Var (id_x, _pos)), _pos)
+    let make_square = X.Stmt.VarDecl (X.Var_decl ((X.Is_static false), X.VarType.Int, id_y, (Some square_expr), _pos))
+    let return_square = X.Stmt.Return ((X.Expr.Var (id_y, _pos)), _pos)
     
-    let square_call: X.expr = X.Call ((X.Ident "square"), [X.IntLiteral (3, _pos)], _pos)
+    let square_call = X.Expr.Call (X.Ident.create("square"), [X.Expr.IntLiteral (3, _pos)], _pos)
 
-    let make_struct: X.decl = X.StructDecl ((X.Ident "message"), [  ], _pos)
+    let make_struct = X.Decl.StructDecl (X.Struct_decl (X.Ident.create("message"), X.Ident.create("message2"),  Some [  ], _pos))
     (* let return_after_call_square_fn_expr: X.stmt = X.Return (square_call, _pos) *)
 
     let program : X.prog = X.Prog [
       make_struct;
-      X.FuncDecl (
-        X.Int,
-        (X.Ident "square"),
+      X.Decl.FuncDecl (
+        X.VarType.Int,
+        X.Ident.create("square"),
         [
-          X.Int, X.Ident "x"
+          X.VarType.Int, X.Ident.create("x")
         ],
-        X.Block ([
+        X.Stmt.Block ([
           make_square;
           return_square
         ], _pos),
         _pos
       );
-      X.FuncDecl (
-        X.Int,
-        (X.Ident "main"),
+      X.Decl.FuncDecl (
+        X.VarType.Int,
+        X.Ident.create("main"),
         [
-          X.Int, X.Ident "argc"
+          X.VarType.Int, X.Ident.create("argc")
         ],
-        X.Block ([
+        X.Stmt.Block ([
           decl_expr;
           decl_assign_expr;
           ptr_decl;
           decl_calc_int_expr;
-          X.ExprStmt (square_call, _pos);
-          X.Return (square_call, _pos);
+          X.Stmt.ExprStmt (square_call, _pos);
+          X.Stmt.Return (square_call, _pos);
         ], _pos),
         _pos
       )
@@ -227,19 +237,13 @@ module Translator_tests =
       "Translator tests" >::: [
         "Example test" >:: first_test
       ]
-  end *)
+  end
 
-(* let series =
+let series =
   "Tests" >:::
   [ 
     Lexer_tests.series
   ; Parser_tests.series
-  ; Translator_tests.series ] *)
-
-  let series =
-    "Tests" >:::
-    [ 
-      Lexer_tests.series
-    ; Parser_tests.series ]
+  ; Translator_tests.series ]
 
 let () = run_test_tt_main series

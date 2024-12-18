@@ -107,7 +107,7 @@ type var_decl = Var_decl of is_static * VarType.t * Ident.t * Expr.t option * Po
 type typedef_decl = Typedef_decl of VarType.t * Ident.t * Position.t  
 [@@deriving compare, sexp, equal, show]
 
-type struct_decl = Struct_decl of Ident.t * Ident.t * var_decl list option * Position.t
+  type struct_decl = Struct_decl of Ident.t * Ident.t * var_decl list option * Position.t
 [@@deriving compare, sexp, equal, show]
 
 type struct_init = Struct_init of Ident.t * Ident.t * Expr.t option * Position.t
