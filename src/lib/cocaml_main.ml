@@ -1,8 +1,9 @@
 open Core
 open Cocaml
 open Lexing
-open Parser_error_handler
+open Parser_error_handler 
 open Translator.TranslateFile
+open Sys_unix
 
 let unimplemented () = ()
 
@@ -31,6 +32,6 @@ let compile_llvm (filename: string) : bool =
   parse_c_to_ast filename
   |> generate_llvm_ir
   |> ignore;
-  print_module_to_file "../../../result.ll";
-
+  print_module_to_file "./result.ll";
+  Sys_unix.command "lli ./result.ll" |> ignore;
   true

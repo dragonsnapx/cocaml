@@ -8,7 +8,7 @@
 (library
  (name cocaml)                   
  (modules syntax_node cocaml_math cocaml_llvm lexer menhir_parser parser_error_handler translator stack_frame stack_frame2)
- (libraries core ppx_jane llvm store  )
+ (libraries core ppx_jane llvm store core_unix.sys_unix)
  (preprocess (pps ppx_deriving.show ppx_jane)))
 
 (library
