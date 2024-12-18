@@ -20,6 +20,7 @@ end
 
 module TranslateFile = 
 struct
+  open Cocaml_math
   module C = Cocaml_llvm.Make(DefaultParameter)
 
   let htbl_functions: (S.Ident.t, DefinedFunc.t) Hashtbl.t = Hashtbl.Poly.create ()
@@ -197,7 +198,7 @@ struct
 
       let field_ptr = L.build_struct_gep ll_struct_type tmp_alloca field_index "field_ptr" C.builder in
       L.build_load (llvartype_of_vartype field_tp) field_ptr "field_val" C.builder
-    | PointerMemberAccess (pt, id, _) -> failwith "TODO2"
+    | PointerMemberAccess (ptr, id, _) -> failwith "TODO"
     | ArrayAccess (arr, acc, _) ->  begin
       let arr_val = parse_expr arr in
       let index_val = parse_expr acc in
@@ -223,37 +224,10 @@ struct
     | Var (v, _) ->
       let ll_v = (F.lookup_variable C.var_env v) in
       L.build_load (ll_v.ltp) (ll_v.value) (ident_to_string v) C.builder
-    | BinOp (bin_op, expr1, expr2, _) -> begin
-        let lhs = parse_expr expr1 in
-        let rhs = parse_expr expr2 in
-        match bin_op with
-        | Plus -> L.build_add lhs rhs "add_instr" C.builder
-        | Minus -> L.build_sub lhs rhs "sub_instr" C.builder
-        | Times -> L.build_mul lhs rhs "mul_instr" C.builder
-        | Divide -> L.build_sdiv lhs rhs "div_instr" C.builder
-        | Modulo -> L.build_srem lhs rhs "mod_instr" C.builder
-        | Equal -> L.build_icmp L.Icmp.Eq lhs rhs "eq_icmp" C.builder
-        | NotEqual -> L.build_icmp L.Icmp.Ne lhs rhs "neq_icmp" C.builder
-        | Less -> L.build_icmp L.Icmp.Slt lhs rhs "lt_icmp" C.builder
-        | LessEqual -> L.build_icmp L.Icmp.Sle lhs rhs "leq_icmp" C.builder
-        | Greater -> L.build_icmp L.Icmp.Sgt lhs rhs "gt_icmp" C.builder
-        | GreaterEqual -> L.build_icmp L.Icmp.Sge lhs rhs "gte_icmp" C.builder
-        | BitwiseAnd -> L.build_and lhs rhs "and_bit" C.builder
-        | BitwiseOr -> L.build_or lhs rhs "or_bit" C.builder
-        | BitwiseXor -> L.build_xor lhs rhs "xor_bit" C.builder
-        | LogicalAnd -> L.build_and lhs rhs "and_instr" C.builder
-        | LogicalOr -> L.build_or lhs rhs "or_instr" C.builder
-        | LeftShift -> L.build_shl lhs rhs "shl_instr" C.builder
-        | RightShift -> L.build_ashr lhs rhs "shr_instr" C.builder
-        | PlusAssign -> failwith "TODO"
-        | MinusAssign -> failwith "TODO"
-        | TimesAssign -> failwith "TODO"
-        | DivideAssign -> failwith "TODO"
-        | ModuloAssign -> failwith "TODO"
-        | BitwiseAndAssign -> failwith "TODO"
-        | BitwiseOrAssign -> failwith "TODO"
-        | BitwiseXorAssign -> failwith "TODO"
-      end
+    | BinOp (bin_op, expr1, expr2, _) ->
+      let lhs = parse_expr expr1 in
+      let rhs = parse_expr expr2 in
+      process_binop bin_op lhs rhs C.builder
     | Assign (to_var, from_var, _) -> 
         let from_val = parse_expr from_var in
         let to_ptr = ptr_of to_var in
@@ -417,8 +391,8 @@ struct
       );
       C.position_at_end end_block;
       nil_return_type
-    | Break _ -> failwith "TODO"
-    | Continue _ -> failwith "TODO"
+    | Break _ -> C.raise_transl_err "Break is unsupported"
+    | Continue _ -> C.raise_transl_err "Continue is unsupported"
     | DoWhile (stmt, expr, _) ->
       let loop_block = C.append_block "do.loop" scoped_fn in
       let cond_block = C.append_block "do.cond" scoped_fn in

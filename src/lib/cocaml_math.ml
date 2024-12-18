@@ -2,31 +2,42 @@ open Core
 module L = Llvm
 module S = Syntax_node
 
-let process_binop (op: S.bin_op) =
+let ignore _ = ()
+
+let process_binop (op: S.Expr.bin_op) (lhs: L.llvalue) (rhs: L.llvalue) (builder: L.llbuilder) =
+  let name = op |> S.Expr.sexp_of_bin_op |> string_of_sexp in
+  let arith instr = instr lhs rhs (name ^ "_instr") builder in
+  let cmp vs = L.build_icmp vs lhs rhs (name ^ "_icmp") builder in
+  let assign instr =
+    let old_val = L.build_load (L.element_type (L.type_of lhs)) lhs ("old_" ^ name ^ "_val") builder in
+    let new_val = instr old_val rhs ("new_" ^ name ^ "_val") builder in
+    L.build_store new_val lhs builder |> ignore;
+    new_val
+  in
   match op with
-  | Plus -> L.build_add lhs rhs "add_instr" C.builder
-  | Minus -> L.build_sub lhs rhs "sub_instr" C.builder
-  | Times -> L.build_mul lhs rhs "mul_instr" C.builder
-  | Divide -> L.build_sdiv lhs rhs "div_instr" C.builder
-  | Modulo -> L.build_srem lhs rhs "mod_instr" C.builder
-  | Equal -> L.build_icmp L.Icmp.Eq lhs rhs "eq_icmp" C.builder
-  | NotEqual -> L.build_icmp L.Icmp.Ne lhs rhs "neq_icmp" C.builder
-  | Less -> L.build_icmp L.Icmp.Slt lhs rhs "lt_icmp" C.builder
-  | LessEqual -> L.build_icmp L.Icmp.Sle lhs rhs "leq_icmp" C.builder
-  | Greater -> L.build_icmp L.Icmp.Sgt lhs rhs "gt_icmp" C.builder
-  | GreaterEqual -> L.build_icmp L.Icmp.Sge lhs rhs "gte_icmp" C.builder
-  | BitwiseAnd -> L.build_and lhs rhs "and_bit" C.builder
-  | BitwiseOr -> L.build_or lhs rhs "or_bit" C.builder
-  | BitwiseXor -> L.build_xor lhs rhs "xor_bit" C.builder
-  | LogicalAnd -> L.build_and lhs rhs "and_instr" C.builder
-  | LogicalOr -> L.build_or lhs rhs "or_instr" C.builder
-  | LeftShift -> L.build_shl lhs rhs "shl_instr" C.builder
-  | RightShift -> L.build_ashr lhs rhs "shr_instr" C.builder
-  | PlusAssign -> failwith "TODO"
-  | MinusAssign -> failwith "TODO"
-  | TimesAssign -> failwith "TODO"
-  | DivideAssign -> failwith "TODO"
-  | ModuloAssign -> failwith "TODO"
-  | BitwiseAndAssign -> failwith "TODO"
-  | BitwiseOrAssign -> failwith "TODO"
-  | BitwiseXorAssign -> failwith "TODO"
+  | Plus -> arith L.build_add
+  | Minus -> arith L.build_sub
+  | Times -> arith L.build_mul
+  | Divide -> arith L.build_sdiv
+  | Modulo -> arith L.build_srem
+  | BitwiseAnd -> arith L.build_and
+  | BitwiseOr -> arith L.build_or
+  | BitwiseXor -> arith L.build_xor
+  | LogicalAnd -> arith L.build_and
+  | LogicalOr -> arith L.build_or
+  | LeftShift -> arith L.build_shl
+  | RightShift -> arith L.build_ashr
+  | Equal -> cmp L.Icmp.Eq
+  | NotEqual ->cmp L.Icmp.Ne
+  | Less -> cmp L.Icmp.Slt
+  | LessEqual -> cmp L.Icmp.Sle
+  | Greater -> cmp L.Icmp.Sgt
+  | GreaterEqual -> cmp L.Icmp.Sge
+  | PlusAssign -> assign L.build_add
+  | MinusAssign -> assign L.build_sub
+  | TimesAssign -> assign L.build_mul
+  | DivideAssign -> assign L.build_sdiv
+  | ModuloAssign -> assign L.build_srem
+  | BitwiseAndAssign -> assign L.build_and
+  | BitwiseOrAssign -> assign L.build_or
+  | BitwiseXorAssign -> assign L.build_xor
