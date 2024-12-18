@@ -48,6 +48,32 @@
 (* Main type from Syntax_node *)
 %type <Syntax_node.prog> program
 
+(* Helper types *)
+%type <Syntax_node.Decl.t list> decl_list
+%type <Syntax_node.Decl.t> decl
+%type <Syntax_node.var_decl> var_decl
+%type <Syntax_node.typedef_decl> typedef_decl
+%type <Syntax_node.struct_decl> struct_decl
+%type <Syntax_node.struct_init> struct_init
+%type <Syntax_node.Stmt.t list> stmt_list
+%type <Syntax_node.Stmt.t> stmt
+%type <Syntax_node.Expr.t> expr
+%type <Syntax_node.Expr.t list> expr_list
+%type <Syntax_node.Expr.bin_op> bin_ops
+%type <Syntax_node.Expr.prefix_un_op> prefix_un_ops
+%type <Syntax_node.Expr.postfix_un_op> postfix_un_ops
+%type <Syntax_node.VarType.t> type_spec
+%type <Syntax_node.Expr.t list> arg_list
+%type <Syntax_node.Stmt.case> case
+%type <Syntax_node.Stmt.case list> case_list
+%type <Syntax_node.Stmt.for_init> for_init
+%type <Syntax_node.var_decl list> var_decl_list
+
+(*
+%type <(Syntax_node.VarType.t * Syntax_node.Ident.t) list> param_list
+%type <(Syntax_node.VarType.t * Syntax_node.Ident.t)> param_list_non_empty
+*)
+
 (* Entry point *)
 %start program
 
@@ -65,34 +91,42 @@ program:
 (* Part #0: Shared Types    *)
 (****************************)
 
-is_static:
-  | STATIC {
-      Is_static true
-    }
-  | {
-      Is_static false
-    }
-
 var_decl_list:
   | { [] }
   | var_decl_list var_decl { $1 @ [$2] }
 
 var_decl:
-  | is_static type_spec IDENT {
-      (* Example: static int x; *)
-      Var_decl ($1, $2, Ident $3, None, make_position $startpos $endpos)
-    }
-  | is_static type_spec IDENT ASSIGN expr {
+  | STATIC type_spec IDENT ASSIGN expr SEMI {
       (* Example: static int x = 42; *)
-      Var_decl ($1, $2, Ident $3, Some $5, make_position $startpos $endpos)
+      Var_decl (Is_static true, $2, Ident $3, Some $5, make_position $startpos $endpos)
     }
-  | is_static type_spec IDENT LBRACKET INT_LITERAL RBRACKET {
-      (* Example: static int arr[5]; *)
-      Var_decl ($1, VarType.Array ($2, Some $5), Ident $3, None, make_position $startpos $endpos)
+  | STATIC type_spec IDENT SEMI {
+      (* Example: static int x; *)
+      Var_decl (Is_static true, $2, Ident $3, None, make_position $startpos $endpos)
     }
-  | is_static type_spec IDENT LBRACKET INT_LITERAL RBRACKET ASSIGN expr {
+  | STATIC type_spec IDENT LBRACKET INT_LITERAL RBRACKET ASSIGN expr SEMI {
       (* Example: static int arr[5] = {1, 2, 3, 4, 5}; *)
-      Var_decl ($1, VarType.Array ($2, Some $5), Ident $3, Some $8, make_position $startpos $endpos)
+      Var_decl (Is_static true, VarType.Array ($2, Some $5), Ident $3, Some $8, make_position $startpos $endpos)
+    }
+  | STATIC type_spec IDENT LBRACKET INT_LITERAL RBRACKET SEMI {
+      (* Example: static int arr[5]; *)
+      Var_decl (Is_static true, VarType.Array ($2, Some $5), Ident $3, None, make_position $startpos $endpos)
+    }
+  | type_spec IDENT ASSIGN expr SEMI {
+      (* Example: int x = 42; *)
+      Var_decl (Is_static false, $1, Ident $2, Some $4, make_position $startpos $endpos)
+    }
+  | type_spec IDENT SEMI {
+      (* Example: int x; *)
+      Var_decl (Is_static false, $1, Ident $2, None, make_position $startpos $endpos)
+    }
+  | type_spec IDENT LBRACKET INT_LITERAL RBRACKET ASSIGN expr SEMI {
+      (* Example: int arr[5] = {1, 2, 3, 4, 5}; *)
+      Var_decl (Is_static false, VarType.Array ($1, Some $4), Ident $2, Some $7, make_position $startpos $endpos)
+    }
+  | type_spec IDENT LBRACKET INT_LITERAL RBRACKET SEMI {
+      (* Example: int arr[5]; *)
+      Var_decl (Is_static false, VarType.Array ($1, Some $4), Ident $2, None, make_position $startpos $endpos)
     }
 
 typedef_decl:
@@ -112,13 +146,13 @@ struct_decl:
     }
 
 struct_init:
-  | STRUCT IDENT IDENT SEMI {
-      (* Example: struct Point p; *)
-      Struct_init (Ident $2, Ident $3, None, make_position $startpos $endpos)
-    }
   | STRUCT IDENT IDENT ASSIGN expr SEMI {
       (* Example: struct Point p = {1, 2}; *)
       Struct_init (Ident $2, Ident $3, Some $5, make_position $startpos $endpos)
+    }
+  | STRUCT IDENT IDENT SEMI {
+      (* Example: struct Point p; *)
+      Struct_init (Ident $2, Ident $3, None, make_position $startpos $endpos)
     }
   
 
@@ -193,7 +227,7 @@ stmt:
   | typedef_decl {
       Stmt.TypedefDecl $1
     }
-  | var_decl SEMI {
+  | var_decl {
       Stmt.VarDecl $1
     }
 
@@ -311,14 +345,14 @@ expr:
   | expr LBRACKET expr RBRACKET {
       Expr.ArrayAccess ($1, $3, make_position $startpos $endpos)
     }
-  | IDENT {
-      Expr.Var (Ident $1, make_position $startpos $endpos)
-    }
-  | IDENT ASSIGN expr {
-      Expr.Assign (Ident $1, $3, make_position $startpos $endpos)
+  | expr ASSIGN expr {
+      Expr.Assign ($1, $3, make_position $startpos $endpos)
     }
   | IDENT LPAREN arg_list RPAREN {
       Expr.Call (Ident $1, $3, make_position $startpos $endpos)
+    }
+  | IDENT {
+      Expr.Var (Ident $1, make_position $startpos $endpos)
     }
   | expr bin_ops expr {
       Expr.BinOp ($2, $1, $3, make_position $startpos $endpos)

@@ -90,7 +90,7 @@ module Expr =
       | ArrayAccess of t * t * Position.t
       | Var of Ident.t * Position.t
       | BinOp of bin_op * t * t * Position.t
-      | Assign of Ident.t * t * Position.t
+      | Assign of t * t * Position.t
       | Call of Ident.t * t list * Position.t
       | PrefixUnOp of prefix_un_op * t * Position.t
       | PostfixUnOp of t * postfix_un_op * Position.t
