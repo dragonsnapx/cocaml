@@ -41,6 +41,8 @@ module Make(Param : ModuleParameter) = struct
   let const_ll_long_t = L.const_int ll_long_t
 
   let const_llvalue_zero = const_ll_int_t 0
+  let const_llvalue_one = const_ll_int_t 1
+  let const_llvalue_negone = const_ll_int_t (-1)
 
   (* Helpers for LLVM shorthands *)
   let append_block name fn = L.append_block context name fn

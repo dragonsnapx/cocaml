@@ -170,7 +170,7 @@ struct
     | FloatLiteral (f, _) -> C.const_ll_float_t f
     | CharLiteral (c, _) -> C.const_ll_char_t (int_of_char c)
     | LongLiteral (l, _) -> C.const_ll_long_t l
-    | StringLiteral (s, _) -> failwith "TODO"
+    | StringLiteral (s, _) -> C.raise_transl_err "Only use strings with arrays"
     | MemberAccess (str, id, _) ->
       let struct_val = parse_expr str in
       let struct_type = expr_to_vartype str in
@@ -198,7 +198,30 @@ struct
 
       let field_ptr = L.build_struct_gep ll_struct_type tmp_alloca field_index "field_ptr" C.builder in
       L.build_load (llvartype_of_vartype field_tp) field_ptr "field_val" C.builder
-    | PointerMemberAccess (ptr, id, _) -> failwith "TODO"
+    | PointerMemberAccess (ptr, id, _) ->
+      let ptr_val = parse_expr ptr in
+      let ptr_type = expr_to_vartype ptr in
+      let s_id =
+        match ptr_type with
+        | Pointer (Struct sid) -> sid
+        | _ -> C.raise_transl_err ("Illegal member access: " ^ (ident_to_string id))
+      in
+
+      let fields =
+        match Hashtbl.find htbl_structs s_id with
+        | Some fs -> fs
+        | None -> C.raise_transl_err ("Cannot access field for struct: " ^ (ident_to_string s_id))
+      in  
+
+      let (field_index, (_, field_tp)) =
+        match List.findi fields ~f:(fun _ (fid, _) -> S.Ident.compare fid id = 0) with
+        | Some (i, pair) -> (i, pair)
+        | None -> C.raise_transl_err ("Translation Error: Unknown field " ^ (ident_to_string id))
+      in
+
+      let ll_struct_type = llvartype_of_vartype (Struct s_id) in
+      let field_ptr = L.build_struct_gep ll_struct_type ptr_val field_index "field_ptr" C.builder in
+      L.build_load (llvartype_of_vartype field_tp) field_ptr "field_val" C.builder
     | ArrayAccess (arr, acc, _) ->  begin
       let arr_val = parse_expr arr in
       let index_val = parse_expr acc in
@@ -245,7 +268,6 @@ struct
       end
     | PrefixUnOp (prefix_un_op, var, _) -> begin
       let var_type = expr_to_vartype var in
-      let var_lltype = llvartype_of_vartype var_type in
       let var_expr = parse_expr var in
       match prefix_un_op with
       | Positive -> var_expr
@@ -263,25 +285,13 @@ struct
             | _ ->  C.raise_transl_err "Dereference of a non-pointer"
           in
           L.build_load (llvartype_of_vartype subtp) var_expr "deref_val" C.builder
-      (* TODO: Dedupe code *)
-      | PrefixIncrement ->
-          let ptr = ptr_of var scoped_fn in
-          let old_val = L.build_load var_lltype ptr "old_val" C.builder in
-          let one = L.const_int var_lltype 1 in
-          let new_val = L.build_add old_val one "inc_val" C.builder in
-          ignore (L.build_store new_val ptr C.builder);
-          new_val
-      | PrefixDecrement ->
-          let ptr = ptr_of var scoped_fn in
-          let old_val = L.build_load var_lltype ptr "old_val" C.builder in
-          let one = L.const_int var_lltype 1 in
-          let new_val = L.build_sub old_val one "dec_val" C.builder in
-          ignore (L.build_store new_val ptr C.builder);
-          new_val
+      | PrefixIncrement -> simple_add (ptr_of var scoped_fn) C.const_llvalue_one C.builder
+      | PrefixDecrement -> simple_add (ptr_of var scoped_fn) C.const_llvalue_negone C.builder
       end
-    | PostfixUnOp (ex, postfix_un_op, _) -> 
+    | PostfixUnOp (var, postfix_un_op, _) -> 
       match postfix_un_op with
-      | _ -> failwith "OK"
+      | PostfixIncrement -> simple_add (ptr_of var scoped_fn) C.const_llvalue_one C.builder
+      | PostfixDecrement -> simple_add (ptr_of var scoped_fn) C.const_llvalue_negone C.builder
 
   and parse_stmt (stmt: S.Stmt.t) (scoped_fn: L.llvalue): L.llvalue =
     let parse_expr stmt = parse_expr stmt scoped_fn in
@@ -432,7 +442,7 @@ struct
       nil_return_type
     | StructDecl s -> declare_struct(s)
     | StructInit s -> initialize_struct(s, scoped_fn)
-    | TypedefDecl S.Typedef_decl (var, id, _) -> failwith "OK"
+    | TypedefDecl s -> typedef_declare s
 
   and parse_decl (decl: S.Decl.t) (scoped_fn: L.llvalue option): L.llvalue =
     match decl with
@@ -441,23 +451,12 @@ struct
         | Some v -> L.declare_global C.ll_int_t (ident_to_string ident) C.this_module
         | None -> C.raise_transl_err "Global variable must be initialized"
       end
-    | FuncDecl (vartype, ident, params, stmt, _) ->
-      declare_function ident vartype params stmt
-    | TypedefDecl S.Typedef_decl (from_vartype, to_vartype, _) ->
-      begin
-        match from_vartype with
-        | Pointer _ | Void -> C.raise_transl_err "Cannot typecast pointer or void." 
-        | Typedef custom  -> begin
-          match Hashtbl.find htbl_types custom with
-          | Some tp -> Hashtbl.set htbl_types ~key:custom ~data:tp; nil_return_type
-          | None -> C.raise_transl_err "Could not typecast from unknown type to another."
-        end
-        | v -> failwith "TODO"
-      end
-    | StructDecl s -> declare_struct(s)
+    | FuncDecl (vartype, ident, params, stmt, _) -> declare_function ident vartype params stmt
+    | TypedefDecl s -> typedef_declare s
+    | StructDecl s -> declare_struct s
     | StructInit s -> 
       match scoped_fn with
-      | Some fn -> initialize_struct(s, fn)
+      | Some fn -> initialize_struct (s, fn)
       | None -> C.raise_transl_err "Struct cannot be initialized in a context-less environment"
 
   and declare_struct (S.Struct_decl (struct_name, var_name, decl_ls_opt, _)) =
@@ -537,7 +536,7 @@ struct
       let fields = Hashtbl.find_exn htbl_structs struct_type in
       match List.findi fields ~f:(fun _ (fid, _) -> S.Ident.compare fid child = 0) with
       | Some (i, (_, ftype)) -> (i, llvartype_of_vartype ftype)
-      | None -> failwith "Field not found"
+      | None -> C.raise_transl_err "Attempted to access a non-existant field inside a struct"
     in
     match expr with
     | Var (id, _) -> (F.lookup_variable C.var_env id).value
@@ -555,6 +554,20 @@ struct
         let arr_ll_type = arr_val |> L.type_of |> L.element_type in
         L.build_gep arr_ll_type arr_val [| C.const_llvalue_zero;  idx_val |] "element_ptr" C.builder
     | _ -> C.raise_transl_err "Cannot take address of an rvalue"
+
+  and typedef_declare (S.Typedef_decl (from_vartype, to_vartype, _)) =
+    begin
+      match from_vartype with
+      | Pointer _ | Void -> C.raise_transl_err "Cannot typecast pointer or void." 
+      | Typedef custom  -> begin
+        match Hashtbl.find htbl_types custom with
+        | Some tp -> Hashtbl.set htbl_types ~key:custom ~data:tp; nil_return_type
+        | None -> C.raise_transl_err "Could not typecast from unknown type to another."
+      end
+      | v -> let lltype = llvartype_of_vartype from_vartype in
+        Hashtbl.set htbl_types ~key:to_vartype ~data:lltype;
+        nil_return_type
+    end
 
   (** Takes a list of statements, outputs LLVM IR code *)
   let rec generate_llvm_ir (prog: S.prog): L.llvalue list =

@@ -41,3 +41,6 @@ let process_binop (op: S.Expr.bin_op) (lhs: L.llvalue) (rhs: L.llvalue) (builder
   | BitwiseAndAssign -> assign L.build_and
   | BitwiseOrAssign -> assign L.build_or
   | BitwiseXorAssign -> assign L.build_xor
+
+let simple_add (var_ptr: L.llvalue) (to_add: L.llvalue) (builder: L.llbuilder) =
+  process_binop (S.Expr.Plus) var_ptr to_add builder
