@@ -1,5 +1,5 @@
-; ModuleID = 'cocaml_mod'
-source_filename = "cocaml_mod"
+; ModuleID = 'example_module'
+source_filename = "example_module"
 
 define i32 @square(i32 %x) {
 entry:

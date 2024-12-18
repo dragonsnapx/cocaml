@@ -7,6 +7,7 @@ module F = Stack_frame.StackFrame
 module DefinedFunc = struct
   type t = {
     fn: L.llvalue;
+    fnvtp: S.vartype;
     name: S.ident;
     returns: L.lltype;
     returns_to: L.llbasicblock;
@@ -33,7 +34,7 @@ struct
     match ident with
     | Ident s -> s
 
-  let rec vartype_to_llvartype (tp: S.vartype): L.lltype =
+  let rec llvartype_of_vartype (tp: S.vartype): L.lltype =
     match tp with
     | Int -> C.ll_int_t
     | Float -> C.ll_float_t
@@ -96,7 +97,7 @@ struct
     | Assign (_, expr, _) -> expr_to_vartype expr
     | Call (expr, param, _) -> begin
         match Hashtbl.find htbl_functions expr with
-        | Some s -> failwith "TODO"
+        | Some s -> s.fnvtp
         | None -> C.raise_transl_err "Cannot infer return type of function"
       end
     | PrefixUnOp (prefix_un_op, expr, _) -> 
@@ -137,13 +138,13 @@ struct
     |> L.builder_at C.context
 
 
-  let rec declare_function (label: S.ident) (returns: L.lltype) (params: (S.vartype * S.ident) list) (body: S.stmt) =
+  let rec declare_function (label: S.ident) (returns: S.vartype) (params: (S.vartype * S.ident) list) (body: S.stmt) =
     F.enter_block var_env;
     let params_ll_value = 
-      List.map params ~f:(fun elt -> elt |> fst |> vartype_to_llvartype) 
+      List.map params ~f:(fun elt -> elt |> fst |> llvartype_of_vartype) 
       |> Array.of_list 
     in
-    let func_type = L.function_type returns params_ll_value in
+    let func_type = L.function_type (llvartype_of_vartype returns) params_ll_value in
     let fn_name = ident_to_string label in
     let fn = match L.lookup_function fn_name C.this_module with
     | None -> L.declare_function fn_name func_type C.this_module
@@ -153,13 +154,13 @@ struct
     List.iteri params ~f:(fun i (tp, id) -> 
       let ll_param = L.param fn i in
       L.set_value_name (ident_to_string id) ll_param;
-      let ll_param_alloc = L.build_alloca (vartype_to_llvartype tp) (ident_to_string id) C.builder in
+      let ll_param_alloc = L.build_alloca (llvartype_of_vartype tp) (ident_to_string id) C.builder in
       L.build_store ll_param ll_param_alloc C.builder |> C.ignore_llvalue;
-      F.declare_variable var_env id { tp = tp; ltp = vartype_to_llvartype tp; value = ll_param_alloc }
+      F.declare_variable var_env id { tp = tp; ltp = llvartype_of_vartype tp; value = ll_param_alloc }
     );
     parse_stmt body fn |> ignore;
     F.exit_block var_env;
-    Hashtbl.set htbl_functions ~key:label ~data:{ name = label; fn = fn; returns = func_type; returns_to = entry_block };
+    Hashtbl.set htbl_functions ~key:label ~data:{ name = label; fn = fn; fnvtp = returns; returns = func_type; returns_to = entry_block };
     fn
 
   and parse_expr (expr: S.expr) (scoped_fn: L.llvalue): L.llvalue =
@@ -172,7 +173,28 @@ struct
     | StringLiteral (s, _) -> failwith "TODO"
     | MemberAccess (m, id, _) -> failwith "TODO"
     | PointerMemberAccess (pt, id, _) -> failwith "TODO"
-    | ArrayAccess (ex1, ex2, _) -> failwith "TODO"
+    | ArrayAccess (arr, acc, _) ->  begin
+      let arr_val = parse_expr arr in
+      let index_val = parse_expr acc in
+      let arr_type = expr_to_vartype arr in
+      let ll_arr_type = llvartype_of_vartype arr_type in
+      match arr_type with
+      (* int* arr *)
+      | Pointer subtp ->
+        let element_ptr = L.build_gep ll_arr_type arr_val [| index_val |] "element_ptr" C.builder in
+        L.build_load (llvartype_of_vartype subtp) element_ptr "element_val" C.builder
+      (* int[] arr *)
+      | _ ->
+        let zero = C.const_ll_int_t 0 in
+        let element_ptr = L.build_gep ll_arr_type arr_val [| zero; index_val |] "element_ptr" C.builder in
+        let subtp =
+          match arr_type with
+          | Pointer stp -> stp
+          | _ -> C.raise_transl_err "Failed to infer type of array"
+        in
+        L.build_load (llvartype_of_vartype subtp) element_ptr "element_val" C.builder
+    end
+
     | Var (v, _) ->
       let ll_v = (F.lookup_variable var_env v) in
       L.build_load (ll_v.ltp) (ll_v.value) (ident_to_string v) C.builder
@@ -218,7 +240,6 @@ struct
         | Some fn ->
             let fn_call_name = "fn_call_" ^ (ident_to_string fn.name) in
             L.build_call fn.returns fn.fn args fn_call_name  C.builder
-        (* TODO: Forward declaration? *)
         | None -> C.raise_transl_err @@ "Cannot find function call to function: " ^ (ident_to_string id)
       end
     | PrefixUnOp (prefix_un_op, e, _) -> failwith "TODO"
@@ -269,7 +290,7 @@ struct
       | ForExpr expr_init ->
           parse_expr expr_init |> C.ignore_llvalue
       | ForVarDecl (is_static, var_type, ident, init_opt) ->
-          let ll_var_type = vartype_to_llvartype var_type in
+          let ll_var_type = llvartype_of_vartype var_type in
           let ll_var_alloc = L.build_alloca ll_var_type (ident_to_string ident) C.builder in
     
           (match init_opt with
@@ -355,7 +376,7 @@ struct
       C.position_at_end end_block;
       nil_return_type
     | LocalVarDecl (is_static, vartype, ident, expr, position) ->
-      let lltype = vartype_to_llvartype vartype in
+      let lltype = llvartype_of_vartype vartype in
       let llname = ident_to_string ident in
       let alloca = 
         L.insertion_block C.builder 
@@ -375,7 +396,35 @@ struct
       end;
       nil_return_type
     | StructVarDecl (lhs_ident, rhs_ident, position ) -> failwith "TODO"        
-    | StructVarDeclInit (lhs_ident, rhs_ident, expr, position ) -> failwith "TODO"    
+    | StructVarDeclInit (lhs_ident, rhs_ident, expr, position ) ->
+      let struct_type =
+        match Hashtbl.find htbl_types lhs_ident with
+        | Some st -> st
+        | None -> C.raise_transl_err ("Unknown struct type: " ^ (ident_to_string lhs_ident))
+      in
+      let var_name = ident_to_string rhs_ident in
+      let alloca =
+        L.insertion_block C.builder
+        |> L.block_parent
+        |> L.entry_block
+        |> L.instr_begin
+        |> L.builder_at C.context
+        |> L.build_alloca struct_type var_name
+      in
+      F.declare_variable var_env rhs_ident { tp = Struct lhs_ident; ltp = struct_type; value = alloca };
+      let init_val = parse_expr expr in
+      let fields =
+        match Hashtbl.find htbl_structs lhs_ident with
+        | Some fs -> fs
+        | None -> C.raise_transl_err ("Unknown struct fields: " ^ (ident_to_string lhs_ident))
+      in
+      List.iteri fields ~f:(fun i (fid, ft) -> 
+        let dest_ptr = L.build_struct_gep struct_type alloca i (var_name ^ "_field_ptr") C.builder in
+        let src_ptr = L.build_struct_gep struct_type init_val i ((ident_to_string rhs_ident) ^ "_init_field_ptr") C.builder in
+        let field_val = L.build_load (llvartype_of_vartype ft) src_ptr (ident_to_string fid ^ "_val") C.builder in
+        ignore (L.build_store field_val dest_ptr C.builder)
+      );
+      nil_return_type
 
   let parse_decl (decl: S.decl) (scoped_fn: L.llvalue option): L.llvalue =
     match decl with
@@ -385,17 +434,17 @@ struct
         | None -> C.raise_transl_err "Global variable must be initialized"
       end
     | FuncDecl (vartype, ident, params, stmt, _) ->
-      declare_function ident (vartype_to_llvartype vartype) params stmt
+      declare_function ident vartype params stmt
     | TypedefDecl (from_vartype, to_vartype, position) ->
       begin
         match from_vartype with
         | Pointer _ | Void -> C.raise_transl_err "Cannot typecast pointer or void." 
         | Typedef custom  -> begin
           match Hashtbl.find htbl_types custom with
-          | Some tp -> failwith "TODO"
+          | Some tp -> Hashtbl.set htbl_types ~key:custom ~data:tp; nil_return_type
           | None -> C.raise_transl_err "Could not typecast from unknown type to another."
         end
-        | v -> failwith "TODO"
+        | v -> Hashtbl.set htbl_types
       end
     | StructDecl (id, decl_ls, _) ->
       begin
@@ -412,7 +461,7 @@ struct
         Hashtbl.set htbl_structs ~key:id ~data:field_types;
         Hashtbl.set htbl_types ~key:id ~data:struct_type;
         let field_types_ll = field_types
-          |> List.map ~f:(fun (_, vt) -> vartype_to_llvartype vt)
+          |> List.map ~f:(fun (_, vt) -> llvartype_of_vartype vt)
           |> Array.of_list
         in
         L.struct_set_body struct_type field_types_ll false;
