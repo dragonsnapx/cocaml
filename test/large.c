@@ -42,11 +42,9 @@ int main() {
   b = b * 2.0;
 
   // Struct usage
-  /*
   struct Point p1;
   p1.x = 1;
   p1.y = 2;
-  */
 
   // For-loop
   int j = 0;
