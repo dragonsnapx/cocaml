@@ -11,38 +11,41 @@ module DefinedVar = struct
   }
 end
 
-module StackFrame =
-struct
-  type t = (S.Ident.t, DefinedVar.t) Hashtbl.t list ref
+exception TranslationStackError of string
 
-  let ident_to_string (ident: S.Ident.t): string =
-    match ident with
-    | Ident s -> s
+let raise_transl_st_err msg =
+  raise (TranslationStackError ("Translation Error -- STACK: " ^ msg))
 
-  let create(): t =
-    ref []
+type item_t = (S.Ident.t, DefinedVar.t) Hashtbl.t
+type t = item_t Stack.t
 
-  let enter_block (env: t) : unit =
-    env := (Hashtbl.Poly.create()) :: !env
-  let exit_block (env: t) : unit =
-    match !env with
-    | [] -> failwith "Translation Error: (Stack) No scope to exit; Stack underflowed"
-    | _ :: rest -> env := rest
+let ident_to_string (ident: S.Ident.t): string =
+  match ident with
+  | Ident s -> s
 
-  let declare_variable (env: t) (ident: S.Ident.t) (var_info: DefinedVar.t) : unit =
-    match !env with
-    | [] -> failwith "Translation Error: (Stack) No active scope to declare a variable"
-    | scope :: _ -> Hashtbl.set scope ~key:ident ~data:var_info
+let create(): t =
+  Stack.create()
 
-  (* Lookup a variable, searching from the current scope outward *)
-  let lookup_variable (env: t) (ident: S.Ident.t) : DefinedVar.t =
-    let rec aux scopes =
-      match scopes with
-      | [] -> failwith ("Translation Error: (Stack) Unknown identifier: " ^ (ident_to_string ident))
-      | scope :: rest ->
-        match Hashtbl.find scope ident with
-        | Some var_info -> var_info
-        | None -> aux rest
-    in
-    aux !env
-end
+let enter_block (env: t) : unit =
+  Stack.push env (Hashtbl.Poly.create())
+let exit_block (env: t) : unit =
+  match Stack.pop env with
+  | None -> raise_transl_st_err "(Stack) No scope to exit; Stack underflowed"
+  | Some _ -> ()
+
+let declare_variable (env: t) (ident: S.Ident.t) (var_info: DefinedVar.t) : unit =
+  match Stack.top env with
+  | None -> raise_transl_st_err "(Stack) No active scope to declare a variable"
+  | Some scope -> Hashtbl.set scope ~key:ident ~data:var_info
+
+(* Lookup a variable, searching from the current scope outward *)
+let lookup_variable (env: t) (ident: S.Ident.t) : DefinedVar.t =
+  let scopes = Stack.to_list env in
+  let rec aux = function
+    | [] -> raise_transl_st_err ("(Stack) Unknown identifier: " ^ (ident_to_string ident))
+    | scope :: rest ->
+      match Hashtbl.find scope ident with
+      | Some var_info -> var_info
+      | None -> aux rest
+  in
+  aux scopes

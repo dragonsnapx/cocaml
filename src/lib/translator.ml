@@ -1,8 +1,9 @@
 [@@@ocaml.warning "-39-32-27-69"]
+
 open Core
 module L = Llvm
 module S = Syntax_node
-module F = Stack_frame.StackFrame
+module F = Stack_frame
 
 module DefinedFunc = struct
   type t = {

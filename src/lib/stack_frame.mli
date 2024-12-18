@@ -11,17 +11,15 @@ sig
     }
 end
 
-module StackFrame :
-    sig
-        type t = (S.Ident.t, DefinedVar.t) Hashtbl.t list ref
+type item_t = (S.Ident.t, DefinedVar.t) Hashtbl.t
+type t = item_t Stack.t
                 
-        val create : unit -> t
-        
-        val enter_block : t -> unit
+val create : unit -> t
 
-        val exit_block : t -> unit
+val enter_block : t -> unit
 
-        val declare_variable : t -> S.Ident.t -> DefinedVar.t -> unit
+val exit_block : t -> unit
 
-        val lookup_variable : t -> S.Ident.t -> DefinedVar.t
-    end
+val declare_variable : t -> S.Ident.t -> DefinedVar.t -> unit
+
+val lookup_variable : t -> S.Ident.t -> DefinedVar.t

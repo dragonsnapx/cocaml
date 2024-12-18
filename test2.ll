@@ -10,8 +10,8 @@ entry:
   store i32 %x, ptr %x1, align 4
   %x2 = load i32, ptr %x1, align 4
   %x3 = load i32, ptr %x1, align 4
-  %mul_instr = mul i32 %x2, %x3
-  store i32 %mul_instr, ptr %y, align 4
+  %Times_instr = mul i32 %x2, %x3
+  store i32 %Times_instr, ptr %y, align 4
   %y4 = load i32, ptr %y, align 4
   ret i32 %y4
 }

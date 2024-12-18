@@ -1,5 +1,6 @@
 module L = Llvm
 module S = Syntax_node
+module K = Stack_frame
 
 module type ModuleParameter = 
   sig
@@ -7,7 +8,7 @@ module type ModuleParameter =
   end
 
 module Make(Param : ModuleParameter) = struct
-  open Stack_frame.StackFrame
+  open Stack_frame
 
   (* Custom translation errors*)
 
