@@ -171,7 +171,7 @@ struct
     | FloatLiteral (f, _) -> C.const_ll_float_t f
     | CharLiteral (c, _) -> C.const_ll_char_t (int_of_char c)
     | LongLiteral (l, _) -> C.const_ll_long_t l
-    | StringLiteral (s, _) -> C.raise_transl_err "Only use strings with arrays"
+    | StringLiteral (s, _) -> L.build_global_stringptr s "str" C.builder
     | MemberAccess (str, id, _) ->
       let struct_val = parse_expr str in
       let struct_type = expr_to_vartype str in
