@@ -63,6 +63,7 @@ struct
     | IntLiteral _ -> S.Int
     | FloatLiteral _ -> S.Float
     | CharLiteral _ -> S.Char
+    | LongLiteral _ -> S.Long
     | StringLiteral _ -> S.Pointer S.Char
     | MemberAccess (expr, ident, _) -> begin
       let base_type = expr_to_vartype expr in
@@ -127,6 +128,7 @@ struct
     | IntLiteral (i, _) -> L.const_int (L.i32_type context) i
     | FloatLiteral (f, _) -> L.const_float (L.float_type context) f
     | CharLiteral (c, _) -> L.const_int (L.i8_type context) (int_of_char c)
+    | LongLiteral (l, _) -> L.const_int (L.i64_type context) l
     | Var (id, _) -> 
       begin
         try (F.lookup_variable var_env id).value
@@ -172,6 +174,7 @@ struct
     | IntLiteral (i, _) -> L.const_int ll_int_t i
     | FloatLiteral (f, _) -> L.const_float ll_float_t f
     | CharLiteral (c, _) -> L.const_int ll_char_t (int_of_char c)
+    | LongLiteral (l, _) -> failwith "TODO"
     | StringLiteral (s, _) -> failwith "TODO"
     | MemberAccess (m, id, _) -> failwith "TODO"
     | PointerMemberAccess (pt, id, _) -> failwith "TODO"
@@ -206,6 +209,9 @@ struct
         | TimesAssign -> failwith "TODO"
         | DivideAssign -> failwith "TODO"
         | ModuloAssign -> failwith "TODO"
+        | BitwiseAndAssign -> failwith "TODO"
+        | BitwiseOrAssign -> failwith "TODO"
+        | BitwiseXorAssign -> failwith "TODO"
       end
     | Assign (id, e, _) -> 
         let ll_v = (F.lookup_variable var_env id) in
@@ -262,6 +268,43 @@ struct
       break_end
     end
     | For (init_expr, cond_expr, incr_expr, stmt_body, _) ->
+      (match init_expr with
+      | ForExpr expr_init ->
+          parse_expr expr_init scoped_fn |> ignore_llvalue
+      | ForVarDecl (is_static, var_type, ident, init_opt) ->
+          let ll_var_type = vartype_to_llvartype var_type in
+          let ll_var_alloc = L.build_alloca ll_var_type (ident_to_string ident) builder in
+    
+          (match init_opt with
+            | Some init_expr ->
+                let init_val = parse_expr init_expr scoped_fn in
+                L.build_store init_val ll_var_alloc builder |> ignore_llvalue
+            | None -> ());
+    
+          F.declare_variable var_env ident {tp = var_type; ltp = ll_var_type; value = ll_var_alloc; }); 
+
+      let cond_block = L.append_block context "for.cond" scoped_fn in
+      let loop_block = L.append_block context "for.loop" scoped_fn in
+      let incr_block = L.append_block context "for.incr" scoped_fn in
+      let end_block = L.append_block context "for.end" scoped_fn in
+
+      L.build_br cond_block builder |> ignore_llvalue;
+      L.position_at_end cond_block builder;
+      let cond_val = parse_expr cond_expr scoped_fn in
+      L.build_cond_br cond_val loop_block end_block builder |> ignore_llvalue;
+
+      L.position_at_end loop_block builder;
+      ignore (parse_stmt stmt_body scoped_fn);
+      L.build_br incr_block builder |> ignore_llvalue;
+
+      L.position_at_end incr_block builder;
+      ignore (parse_expr incr_expr scoped_fn);
+      L.build_br cond_block builder |> ignore_llvalue;
+
+      L.position_at_end end_block builder;
+      nil_return_type
+    (*
+    | For (init_expr, cond_expr, incr_expr, stmt_body, _) ->
       parse_expr init_expr scoped_fn |> ignore_llvalue;
       
       let cond_block = L.append_block context "for.cond" scoped_fn in
@@ -284,6 +327,7 @@ struct
 
       L.position_at_end end_block builder;
       nil_return_type
+    *)
     | ExprStmt (expr, _) -> parse_expr expr scoped_fn
     | Block (stmt_body_ls, _) -> 
 
@@ -358,6 +402,8 @@ struct
         | None -> ()
       end;
       nil_return_type
+    | StructVarDecl (lhs_ident, rhs_ident, position ) -> failwith "TODO"        
+    | StructVarDeclInit (lhs_ident, rhs_ident, expr, position ) -> failwith "TODO"    
 
   let parse_decl (decl: S.decl) (scoped_fn: L.llvalue option): L.llvalue =
     match decl with

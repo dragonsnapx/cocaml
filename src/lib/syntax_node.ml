@@ -38,15 +38,18 @@ type bin_op =
   | Greater       
   | GreaterEqual   
   | LogicalAnd     
-  | LogicalOr     
+  | LogicalOr    
+  | BitwiseAnd    
+  | BitwiseOr     
+  | BitwiseXor 
   | PlusAssign
   | MinusAssign
   | TimesAssign
   | DivideAssign
   | ModuloAssign
-  | BitwiseAnd    
-  | BitwiseOr     
-  | BitwiseXor
+  | BitwiseAndAssign   
+  | BitwiseOrAssign    
+  | BitwiseXorAssign
 [@@deriving compare, sexp, equal, show]
 
 type prefix_un_op =
@@ -69,6 +72,7 @@ type expr =
   | IntLiteral of int * position
   | FloatLiteral of float * position
   | CharLiteral of char * position
+  | LongLiteral of int * position
   | StringLiteral of string * position
   | MemberAccess of expr * ident * position
   | PointerMemberAccess of expr * ident * position
@@ -85,14 +89,21 @@ type stmt =
   | Return of expr * position
   | If of expr * stmt * stmt option * position
   | While of expr * stmt * position
-  | For of expr * expr * expr * stmt * position
+  | For of for_init * expr * expr * stmt * position
   | ExprStmt of expr * position
   | Block of stmt list * position
   | Switch of expr * case list * position
   | Break of position
   | Continue of position
   | DoWhile of stmt * expr * position
-  | LocalVarDecl of is_static * vartype * ident * expr option * position                   
+  | LocalVarDecl of is_static * vartype * ident * expr option * position  
+  | StructVarDecl of ident * ident * position      
+  | StructVarDeclInit of ident * ident * expr * position           
+[@@deriving compare, sexp, equal, show]
+
+and for_init =
+  | ForExpr of expr                                                           
+  | ForVarDecl of is_static * vartype * ident * expr option                   
 [@@deriving compare, sexp, equal, show]
 
 and case =
@@ -104,7 +115,7 @@ type decl =
   | GlobalVarDecl of is_static * vartype * ident * expr option * position     
   | FuncDecl of vartype * ident * (vartype * ident) list * stmt * position    
   | TypedefDecl of vartype * ident * position                                 
-  | StructDecl of ident * decl list * position                                
+  | StructDecl of ident * decl list * position 
 [@@deriving compare, sexp, equal, show]
 
 type prog = Prog of decl list [@@deriving compare, sexp, equal, show]

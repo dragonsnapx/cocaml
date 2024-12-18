@@ -1,9 +1,10 @@
 (Prog (
   (FuncDecl Int (Ident "main") () 
     (Block (
-      (Decl (VarDecl Int (Ident "y") None (5 12)))
-      (Stmt (ExprStmt (Assign (Ident "y") (IntLiteral 5 (15 16)) (13 17)) (13 18)))
-      (Stmt (Return (Var (Ident "y") (25 26)) (18 27)))
-    ) (3 28))
-  ) (1 28))
+      (Decl (VarDecl Int (Ident "y") None (15 21)))
+      (Stmt (ExprStmt (Assign (Ident "y") (IntLiteral 5 (28 29)) (24 29)) (24 30)))
+      (Stmt (Return (Var (Ident "y") (40 41)) (33 42)))
+    ) (11 44))
+  ) (0 44))
 )
+
