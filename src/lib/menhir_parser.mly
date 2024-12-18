@@ -255,8 +255,8 @@ stmt:
     }
 
   (* For Loops *)
-  | FOR LPAREN for_init SEMI expr SEMI expr RPAREN stmt {
-      Stmt.For ($3, $5, $7, $9, make_position $startpos $endpos)
+  | FOR LPAREN for_init expr SEMI expr RPAREN stmt {
+      Stmt.For ($3, $4, $6, $8, make_position $startpos $endpos)
     }
 
   (* Break Statement *)
@@ -292,7 +292,7 @@ stmt:
 
 (* For-loop initializer can be either a variable declaration or assignment *)
 for_init:
-  | expr {
+  | expr SEMI {
       Stmt.ForExpr $1
     }
   | var_decl {
