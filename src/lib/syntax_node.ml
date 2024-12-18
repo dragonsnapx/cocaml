@@ -7,12 +7,13 @@ module Position =
       pos_end: int;
     } [@@deriving compare, sexp, equal, show]
 
-    let create: pos_start pos_end = { pos_start; pos_end }
+    let create (pos_start: int) (pos_end: int) : t = { pos_start; pos_end }
   end
 
 module Ident = 
   struct
     type t = Ident of string [@@deriving compare, sexp, hash, equal, show]
+    let create (name: string) : t = Ident name
   end
 
 module VarType = 
@@ -27,7 +28,7 @@ module VarType =
       | Struct of Ident.t
       | Typedef of Ident.t
       | Pointer of t
-      | Array of Expr.t option
+      | Array of t * int option
     [@@deriving compare, sexp, equal, show]
   end
 
@@ -112,9 +113,9 @@ type struct_decl = Struct_decl of Ident.t * Ident.t * var_decl list option * Pos
 type struct_init = Struct_init of Ident.t * Ident.t * Expr.t option * Position.t
 [@@deriving compare, sexp, equal, show]
 
-module Stmt :
+module Stmt = 
   (* Each type of statement for a program *)
-  sig
+  struct
     type t =
       | Return of Expr.t * Position.t
       | If of Expr.t * t * t option * Position.t
@@ -127,18 +128,19 @@ module Stmt :
       | Continue of Position.t
       | DoWhile of t * Expr.t * Position.t
       | VarDecl of var_decl
-      | StructDecl of struct_decl
       | TypedefDecl of typedef_decl
-  [@@deriving compare, sexp, equal, show]
-
-    type for_init =
-      | ForExpr of Expr.t                                                                                           
-      | ForVarDecl of var_decl                                                                         
+      | StructDecl of struct_decl
+      | StructInit of struct_init
     [@@deriving compare, sexp, equal, show]
-
-    type case =
+  
+    and case =
       | Case of Expr.t * t list * Position.t
       | Default of t list * Position.t
+    [@@deriving compare, sexp, equal, show]
+
+    and for_init =
+      | ForExpr of Expr.t                                                                                           
+      | ForVarDecl of var_decl                                                                         
     [@@deriving compare, sexp, equal, show]
   end
 
