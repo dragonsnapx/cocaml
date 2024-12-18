@@ -171,7 +171,33 @@ struct
     | CharLiteral (c, _) -> C.const_ll_char_t (int_of_char c)
     | LongLiteral (l, _) -> C.const_ll_long_t l
     | StringLiteral (s, _) -> failwith "TODO"
-    | MemberAccess (m, id, _) -> failwith "TODO"
+    | MemberAccess (str, id, _) ->
+      let struct_val = parse_expr str in
+      let struct_type = expr_to_vartype str in
+      let s_id =
+        match struct_type with
+        | Struct sid -> sid
+        | _ -> C.raise_transl_err ("MemberAccess on a non-struct type: " ^ (ident_to_string id))
+      in
+
+      let fields = 
+        match Hashtbl.find htbl_structs s_id with
+        | Some fs -> fs
+        | None -> C.raise_transl_err ("Cannot access field for struct: " ^ (ident_to_string s_id))
+      in
+
+      let (field_index, (_, field_tp)) =
+        match List.findi fields ~f:(fun _ (fid, _) -> S.compare_ident fid id = 0) with
+        | Some (i, pair) -> (i, pair)
+        | None -> C.raise_transl_err ("Translation Error: Unknown field " ^ (ident_to_string id))
+      in
+
+      let ll_struct_type = llvartype_of_vartype struct_type in
+      let tmp_alloca = L.build_alloca ll_struct_type "tmp_struct" C.builder in
+      L.build_store struct_val tmp_alloca C.builder |> ignore;
+
+      let field_ptr = L.build_struct_gep ll_struct_type tmp_alloca field_index "field_ptr" C.builder in
+      L.build_load (llvartype_of_vartype field_tp) field_ptr "field_val" C.builder
     | PointerMemberAccess (pt, id, _) -> failwith "TODO"
     | ArrayAccess (arr, acc, _) ->  begin
       let arr_val = parse_expr arr in
@@ -444,7 +470,7 @@ struct
           | Some tp -> Hashtbl.set htbl_types ~key:custom ~data:tp; nil_return_type
           | None -> C.raise_transl_err "Could not typecast from unknown type to another."
         end
-        | v -> Hashtbl.set htbl_types
+        | v -> failwith "TODO"
       end
     | StructDecl (id, decl_ls, _) ->
       begin
