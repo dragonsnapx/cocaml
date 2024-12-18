@@ -2,11 +2,14 @@ open Core
 open Cocaml
 open Lexing
 open Parser_error_handler
+open Translator.TranslateFile
 
 let unimplemented () = ()
 
+let ignore _ = ()
+
 let compile (_filename: string) (_flags: (string * string) list) = 
-  unimplemented()
+  unimplemented()  
 
 let parse_c_to_ast (filename: string) : Syntax_node.prog =
   let lexbuf = from_channel (In_channel.create filename) in
@@ -23,6 +26,11 @@ let parse_c_to_ast (filename: string) : Syntax_node.prog =
     | ParserError (msg, _) ->
         Printf.eprintf "ParserError: %s\n" msg;
         Syntax_node.Prog []
-      
-let compile_llvm (_filename: string) : bool =
-  false;
+        
+let compile_llvm (filename: string) : bool =
+  parse_c_to_ast filename
+  |> generate_llvm_ir
+  |> ignore;
+  print_module_to_file "../../../result.ll";
+
+  true
