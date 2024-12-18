@@ -13,11 +13,13 @@ module DefinedFunc = struct
   }
 end
 
+module DefaultParameter : Cocaml_llvm.ModuleParameter = struct
+  let module_name = "example_module"
+end
+
 module TranslateFile = 
 struct
-  let context = L.global_context()
-  let builder = L.builder context
-  let this_module = L.create_module context "cocaml_mod"
+  module C = Cocaml_llvm.Make(DefaultParameter)
 
   let htbl_functions: (S.ident, DefinedFunc.t) Hashtbl.t = Hashtbl.Poly.create ()
   let htbl_types: (S.ident, L.lltype) Hashtbl.t = Hashtbl.Poly.create ()
@@ -25,16 +27,7 @@ struct
 
   let var_env = F.create()
 
-  let ll_char_t = L.i8_type context
-  let ll_int_t = L.i32_type context
-  let ll_long_t = L.i64_type context
-  let ll_double_t = L.double_type context
-  let ll_float_t = L.float_type context
-
-  let nil_return_type = L.const_null (L.i32_type context)
-
-  let ignore_llvalue (v : L.llvalue) : unit =
-    ()
+  let nil_return_type = L.const_null (L.i32_type C.context)
 
   let ident_to_string (ident: S.ident): string =
     match ident with
@@ -42,13 +35,13 @@ struct
 
   let rec vartype_to_llvartype (tp: S.vartype): L.lltype =
     match tp with
-    | Int -> ll_int_t
-    | Float -> ll_float_t
-    | Double -> ll_double_t
-    | Void -> L.void_type context
-    | Pointer subtp -> L.pointer_type context
-    | Char -> ll_char_t
-    | Long -> ll_long_t
+    | Int -> C.ll_int_t
+    | Float -> C.ll_float_t
+    | Double -> C.ll_double_t
+    | Void -> C.ll_void_t
+    | Pointer subtp -> L.pointer_type C.context
+    | Char -> C.ll_char_t
+    | Long -> C.ll_long_t
     | Typedef custom -> 
       begin
         try
@@ -125,10 +118,10 @@ struct
 
   let extract_expr_value (expr: S.expr): L.llvalue =
     match expr with
-    | IntLiteral (i, _) -> L.const_int (L.i32_type context) i
-    | FloatLiteral (f, _) -> L.const_float (L.float_type context) f
-    | CharLiteral (c, _) -> L.const_int (L.i8_type context) (int_of_char c)
-    | LongLiteral (l, _) -> L.const_int (L.i64_type context) l
+    | IntLiteral (i, _) -> C.const_ll_int_t i
+    | FloatLiteral (f, _) -> C.const_ll_float_t f
+    | CharLiteral (c, _) -> C.const_ll_char_t (int_of_char c)
+    | LongLiteral (l, _) -> C.const_ll_long_t l
     | Var (id, _) -> 
       begin
         try (F.lookup_variable var_env id).value
@@ -137,11 +130,11 @@ struct
     | _ -> failwith "Translation Error: extract_expr_value must be called on literal"
 
   let func_entry_builder (): L.llbuilder =
-    L.insertion_block builder
+    L.insertion_block C.builder
     |> L.block_parent
     |> L.entry_block
     |> L.instr_begin
-    |> L.builder_at context
+    |> L.builder_at C.context
 
 
   let rec declare_function (label: S.ident) (returns: L.lltype) (params: (S.vartype * S.ident) list) (body: S.stmt) =
@@ -152,16 +145,16 @@ struct
     in
     let func_type = L.function_type returns params_ll_value in
     let fn_name = ident_to_string label in
-    let fn = match L.lookup_function fn_name this_module with
-    | None -> L.declare_function fn_name func_type this_module
+    let fn = match L.lookup_function fn_name C.this_module with
+    | None -> L.declare_function fn_name func_type C.this_module
     | Some _ -> failwith "Translation Error: Function already exists" in
-    let entry_block = L.append_block context "entry" fn in
-    L.position_at_end entry_block builder;
+    let entry_block = C.append_block "entry" fn in
+    C.position_at_end entry_block;
     List.iteri params ~f:(fun i (tp, id) -> 
       let ll_param = L.param fn i in
       L.set_value_name (ident_to_string id) ll_param;
-      let ll_param_alloc = L.build_alloca (vartype_to_llvartype tp) (ident_to_string id) builder in
-      L.build_store ll_param ll_param_alloc builder |> ignore_llvalue;
+      let ll_param_alloc = L.build_alloca (vartype_to_llvartype tp) (ident_to_string id) C.builder in
+      L.build_store ll_param ll_param_alloc C.builder |> C.ignore_llvalue;
       F.declare_variable var_env id { tp = tp; ltp = vartype_to_llvartype tp; value = ll_param_alloc }
     );
     parse_stmt body fn |> ignore;
@@ -170,40 +163,41 @@ struct
     fn
 
   and parse_expr (expr: S.expr) (scoped_fn: L.llvalue): L.llvalue =
+    let parse_expr expr = parse_expr expr scoped_fn in
     match expr with
-    | IntLiteral (i, _) -> L.const_int ll_int_t i
-    | FloatLiteral (f, _) -> L.const_float ll_float_t f
-    | CharLiteral (c, _) -> L.const_int ll_char_t (int_of_char c)
-    | LongLiteral (l, _) -> failwith "TODO"
+    | IntLiteral (i, _) -> C.const_ll_int_t i
+    | FloatLiteral (f, _) -> C.const_ll_float_t f
+    | CharLiteral (c, _) -> C.const_ll_char_t (int_of_char c)
+    | LongLiteral (l, _) -> C.const_ll_long_t l
     | StringLiteral (s, _) -> failwith "TODO"
     | MemberAccess (m, id, _) -> failwith "TODO"
     | PointerMemberAccess (pt, id, _) -> failwith "TODO"
     | ArrayAccess (ex1, ex2, _) -> failwith "TODO"
     | Var (v, _) ->
       let ll_v = (F.lookup_variable var_env v) in
-      L.build_load (ll_v.ltp) (ll_v.value) (ident_to_string v) builder
+      L.build_load (ll_v.ltp) (ll_v.value) (ident_to_string v) C.builder
     | BinOp (bin_op, expr1, expr2, _) -> begin
-        let lhs = parse_expr expr1 scoped_fn in
-        let rhs = parse_expr expr2 scoped_fn in
+        let lhs = parse_expr expr1 in
+        let rhs = parse_expr expr2 in
         match bin_op with
-        | Plus -> L.build_add lhs rhs "add_instr" builder
-        | Minus -> L.build_sub lhs rhs "sub_instr" builder
-        | Times -> L.build_mul lhs rhs "mul_instr" builder
-        | Divide -> L.build_sdiv lhs rhs "div_instr" builder
-        | Modulo -> L.build_srem lhs rhs "mod_instr" builder
-        | Equal -> L.build_icmp L.Icmp.Eq lhs rhs "eq_icmp" builder
-        | NotEqual -> L.build_icmp L.Icmp.Ne lhs rhs "neq_icmp" builder
-        | Less -> L.build_icmp L.Icmp.Slt lhs rhs "lt_icmp" builder
-        | LessEqual -> L.build_icmp L.Icmp.Sle lhs rhs "leq_icmp" builder
-        | Greater -> L.build_icmp L.Icmp.Sgt lhs rhs "gt_icmp" builder
-        | GreaterEqual -> L.build_icmp L.Icmp.Sge lhs rhs "gte_icmp" builder
-        | BitwiseAnd -> L.build_and lhs rhs "and_bit" builder
-        | BitwiseOr -> L.build_or lhs rhs "or_bit" builder
-        | BitwiseXor -> L.build_xor lhs rhs "xor_bit" builder
-        | LogicalAnd -> L.build_and lhs rhs "and_instr" builder
-        | LogicalOr -> L.build_or lhs rhs "or_instr" builder
-        | LeftShift -> L.build_shl lhs rhs "shl_instr" builder
-        | RightShift -> L.build_ashr lhs rhs "shr_instr" builder
+        | Plus -> L.build_add lhs rhs "add_instr" C.builder
+        | Minus -> L.build_sub lhs rhs "sub_instr" C.builder
+        | Times -> L.build_mul lhs rhs "mul_instr" C.builder
+        | Divide -> L.build_sdiv lhs rhs "div_instr" C.builder
+        | Modulo -> L.build_srem lhs rhs "mod_instr" C.builder
+        | Equal -> L.build_icmp L.Icmp.Eq lhs rhs "eq_icmp" C.builder
+        | NotEqual -> L.build_icmp L.Icmp.Ne lhs rhs "neq_icmp" C.builder
+        | Less -> L.build_icmp L.Icmp.Slt lhs rhs "lt_icmp" C.builder
+        | LessEqual -> L.build_icmp L.Icmp.Sle lhs rhs "leq_icmp" C.builder
+        | Greater -> L.build_icmp L.Icmp.Sgt lhs rhs "gt_icmp" C.builder
+        | GreaterEqual -> L.build_icmp L.Icmp.Sge lhs rhs "gte_icmp" C.builder
+        | BitwiseAnd -> L.build_and lhs rhs "and_bit" C.builder
+        | BitwiseOr -> L.build_or lhs rhs "or_bit" C.builder
+        | BitwiseXor -> L.build_xor lhs rhs "xor_bit" C.builder
+        | LogicalAnd -> L.build_and lhs rhs "and_instr" C.builder
+        | LogicalOr -> L.build_or lhs rhs "or_instr" C.builder
+        | LeftShift -> L.build_shl lhs rhs "shl_instr" C.builder
+        | RightShift -> L.build_ashr lhs rhs "shr_instr" C.builder
         | PlusAssign -> failwith "TODO"
         | MinusAssign -> failwith "TODO"
         | TimesAssign -> failwith "TODO"
@@ -215,15 +209,15 @@ struct
       end
     | Assign (id, e, _) -> 
         let ll_v = (F.lookup_variable var_env id) in
-        L.build_store ll_v.value (parse_expr e scoped_fn) builder
+        L.build_store ll_v.value (parse_expr e) C.builder
     | Call (id, exprs, _) -> begin
         let args = exprs
-        |> List.map ~f:(fun el -> parse_expr el scoped_fn)
+        |> List.map ~f:(fun el -> parse_expr el)
         |> Array.of_list in
         match Hashtbl.find htbl_functions id with
         | Some fn ->
             let fn_call_name = "fn_call_" ^ (ident_to_string fn.name) in
-            L.build_call fn.returns fn.fn args fn_call_name  builder
+            L.build_call fn.returns fn.fn args fn_call_name  C.builder
         (* TODO: Forward declaration? *)
         | None -> failwith @@ "Cannot find function call to function: " ^ (ident_to_string id)
       end
@@ -231,151 +225,152 @@ struct
     | PostfixUnOp (e, postfix_un_op, _) -> failwith "TODO"
 
   and parse_stmt (stmt: S.stmt) (scoped_fn: L.llvalue): L.llvalue =
+    let parse_expr stmt = parse_expr stmt scoped_fn in
     match stmt with
-    | Return (expr, _) -> L.build_ret (parse_expr expr scoped_fn) builder
+    | Return (expr, _) -> L.build_ret (parse_expr expr) C.builder
     | If (expr, then_body, else_body, _) -> begin
         (* Missing: Checking if result evaluates to an integer/bool *)
-        let cond_val = parse_expr expr scoped_fn in
-        let then_block = L.append_block context "if.then" scoped_fn in
+        let cond_val = parse_expr expr in
+        let then_block = C.append_block "if.then" scoped_fn in
         let else_block = begin
           match else_body with
-          | Some b -> L.append_block context "if.else" scoped_fn
+          | Some b -> C.append_block "if.else" scoped_fn
           | None -> then_block
         end in
-        let finally_block = L.append_block context "if.finally" scoped_fn in
-        L.build_cond_br cond_val then_block else_block builder |> ignore_llvalue;
-        L.position_at_end then_block builder;
-        parse_stmt then_body scoped_fn |> ignore_llvalue;
-        L.build_br finally_block builder |> ignore_llvalue;
+        let finally_block = C.append_block "if.finally" scoped_fn in
+        L.build_cond_br cond_val then_block else_block C.builder |> C.ignore_llvalue;
+        L.position_at_end then_block C.builder;
+        parse_stmt then_body scoped_fn |> C.ignore_llvalue;
+        L.build_br finally_block C.builder |> C.ignore_llvalue;
         (match else_body with
         | Some b -> begin
-            L.position_at_end else_block builder;
-            parse_stmt b scoped_fn |> ignore_llvalue;
-            L.build_br finally_block builder |> ignore_llvalue
+            L.position_at_end else_block C.builder;
+            parse_stmt b scoped_fn |> C.ignore_llvalue;
+            L.build_br finally_block C.builder |> C.ignore_llvalue
           end
         | None -> ());
-        L.position_at_end finally_block builder;
+        L.position_at_end finally_block C.builder;
         nil_return_type
       end
     | While (expr, stmt, _) -> begin
-      let condition_block = L.append_block context "while.cond" scoped_fn in
-      let condition = parse_expr expr scoped_fn in
-      let while_block = L.append_block context "while.true" scoped_fn in
-      let end_block = L.append_block context "while.end" scoped_fn in
-      L.position_at_end condition_block builder;
-      let break_end = L.build_cond_br condition while_block end_block builder in
-      L.position_at_end while_block builder;
-      parse_stmt stmt scoped_fn |> ignore_llvalue;
-      L.position_at_end end_block builder;
+      let condition_block = C.append_block "while.cond" scoped_fn in
+      let condition = parse_expr expr in
+      let while_block = C.append_block "while.true" scoped_fn in
+      let end_block = C.append_block "while.end" scoped_fn in
+      L.position_at_end condition_block C.builder;
+      let break_end = L.build_cond_br condition while_block end_block C.builder in
+      L.position_at_end while_block C.builder;
+      parse_stmt stmt scoped_fn |> C.ignore_llvalue;
+      L.position_at_end end_block C.builder;
       break_end
     end
     | For (init_expr, cond_expr, incr_expr, stmt_body, _) ->
       (match init_expr with
       | ForExpr expr_init ->
-          parse_expr expr_init scoped_fn |> ignore_llvalue
+          parse_expr expr_init |> C.ignore_llvalue
       | ForVarDecl (is_static, var_type, ident, init_opt) ->
           let ll_var_type = vartype_to_llvartype var_type in
-          let ll_var_alloc = L.build_alloca ll_var_type (ident_to_string ident) builder in
+          let ll_var_alloc = L.build_alloca ll_var_type (ident_to_string ident) C.builder in
     
           (match init_opt with
             | Some init_expr ->
-                let init_val = parse_expr init_expr scoped_fn in
-                L.build_store init_val ll_var_alloc builder |> ignore_llvalue
+                let init_val = parse_expr init_expr in
+                L.build_store init_val ll_var_alloc C.builder |> C.ignore_llvalue
             | None -> ());
     
           F.declare_variable var_env ident {tp = var_type; ltp = ll_var_type; value = ll_var_alloc; }); 
 
-      let cond_block = L.append_block context "for.cond" scoped_fn in
-      let loop_block = L.append_block context "for.loop" scoped_fn in
-      let incr_block = L.append_block context "for.incr" scoped_fn in
-      let end_block = L.append_block context "for.end" scoped_fn in
+      let cond_block = C.append_block "for.cond" scoped_fn in
+      let loop_block = C.append_block "for.loop" scoped_fn in
+      let incr_block = C.append_block "for.incr" scoped_fn in
+      let end_block = C.append_block "for.end" scoped_fn in
 
-      L.build_br cond_block builder |> ignore_llvalue;
-      L.position_at_end cond_block builder;
-      let cond_val = parse_expr cond_expr scoped_fn in
-      L.build_cond_br cond_val loop_block end_block builder |> ignore_llvalue;
+      L.build_br cond_block C.builder |> C.ignore_llvalue;
+      L.position_at_end cond_block C.builder;
+      let cond_val = parse_expr cond_expr in
+      L.build_cond_br cond_val loop_block end_block C.builder |> C.ignore_llvalue;
 
-      L.position_at_end loop_block builder;
+      C.position_at_end loop_block;
       ignore (parse_stmt stmt_body scoped_fn);
-      L.build_br incr_block builder |> ignore_llvalue;
+      L.build_br incr_block C.builder |> C.ignore_llvalue;
 
-      L.position_at_end incr_block builder;
-      ignore (parse_expr incr_expr scoped_fn);
-      L.build_br cond_block builder |> ignore_llvalue;
+      C.position_at_end incr_block;
+      ignore (parse_expr incr_expr);
+      L.build_br cond_block C.builder |> C.ignore_llvalue;
 
-      L.position_at_end end_block builder;
+      C.position_at_end end_block;
       nil_return_type
-    | ExprStmt (expr, _) -> parse_expr expr scoped_fn
+    | ExprStmt (expr, _) -> parse_expr expr
     | Block (stmt_body_ls, _) -> 
 
-      let current_block = L.insertion_block builder in
+      let current_block = L.insertion_block C.builder in
       let scoped_block =
         List.fold_left stmt_body_ls ~init:current_block ~f:(fun _ stmt ->
-          parse_stmt stmt scoped_fn |> ignore_llvalue;
-          L.insertion_block builder
+          parse_stmt stmt scoped_fn |> C.ignore_llvalue;
+          L.insertion_block C.builder
         )
       in
-      L.position_at_end scoped_block builder;
+      C.position_at_end scoped_block;
       (* I wanted to return a null type, but that causes an error *)
       nil_return_type
     | Switch (expr, cases, _) ->
-      let switch_val = parse_expr expr scoped_fn in
-      let end_block = L.append_block context "switch.end" scoped_fn in
-      let switch_inst = L.build_switch switch_val end_block (List.length cases) builder in
+      let switch_val = parse_expr expr in
+      let end_block = C.append_block "switch.end" scoped_fn in
+      let switch_inst = L.build_switch switch_val end_block (List.length cases) C.builder in
       List.iter cases ~f:(fun c ->
         match c with
         | Case (case_expr, stmt_list, _) ->
-          let case_block = L.append_block context "switch.case" scoped_fn in
-          let case_val = parse_expr case_expr scoped_fn in
+          let case_block = C.append_block "switch.case" scoped_fn in
+          let case_val = parse_expr case_expr in
           L.add_case switch_inst case_val case_block;
-          L.position_at_end case_block builder;
+          C.position_at_end case_block;
           List.iter stmt_list ~f:(fun s -> ignore (parse_stmt s scoped_fn));
           ()
         | Default (stmt_list, _) ->
-          let default_block = L.append_block context "switch.default" scoped_fn in
+          let default_block = C.append_block "switch.default" scoped_fn in
           L.add_case switch_inst (L.const_int (L.type_of switch_val) 0) default_block; (* Hack: There's no default for LLVM switches natively, we can place a fake val if needed or just use end_block as default *)
-          L.position_at_end default_block builder;
+          C.position_at_end default_block;
           List.iter stmt_list ~f:(fun s -> ignore (parse_stmt s scoped_fn));
       );
 
-      L.position_at_end end_block builder;
+      C.position_at_end end_block;
       nil_return_type
     | Break _ -> failwith "TODO"
     | Continue _ -> failwith "TODO"
     | DoWhile (stmt, expr, _) ->
-      let loop_block = L.append_block context "do.loop" scoped_fn in
-      let cond_block = L.append_block context "do.cond" scoped_fn in
-      let end_block = L.append_block context "do.end" scoped_fn in
+      let loop_block = C.append_block "do.loop" scoped_fn in
+      let cond_block = C.append_block "do.cond" scoped_fn in
+      let end_block = C.append_block "do.end" scoped_fn in
 
-      L.build_br loop_block builder |> ignore_llvalue;
+      L.build_br loop_block C.builder |> C.ignore_llvalue;
 
-      L.position_at_end loop_block builder;
+      C.position_at_end loop_block;
       ignore (parse_stmt stmt scoped_fn);
-      L.build_br cond_block builder |> ignore_llvalue;
+      L.build_br cond_block C.builder |> C.ignore_llvalue;
 
-      L.position_at_end cond_block builder;
-      let cond_val = parse_expr expr scoped_fn in
-      L.build_cond_br cond_val loop_block end_block builder |> ignore_llvalue;
+      C.position_at_end cond_block;
+      let cond_val = parse_expr expr in
+      L.build_cond_br cond_val loop_block end_block C.builder |> C.ignore_llvalue;
 
-      L.position_at_end end_block builder;
+      C.position_at_end end_block;
       nil_return_type
     | LocalVarDecl (is_static, vartype, ident, expr, position) ->
       let lltype = vartype_to_llvartype vartype in
       let llname = ident_to_string ident in
       let alloca = 
-        L.insertion_block builder 
+        L.insertion_block C.builder 
         |> L.block_parent 
         |> L.entry_block
         |> L.instr_begin
-        |> L.builder_at context
+        |> L.builder_at C.context
         |> L.build_alloca lltype llname
       in
       F.declare_variable var_env ident { tp = vartype; ltp = lltype; value = alloca };
       begin
         match expr with
         | Some expr_ ->
-          let value = parse_expr expr_ scoped_fn in
-          L.build_store value alloca builder |> ignore_llvalue
+          let value = parse_expr expr_ in
+          L.build_store value alloca C.builder |> C.ignore_llvalue
         | None -> ()
       end;
       nil_return_type
@@ -386,7 +381,7 @@ struct
     match decl with
     | GlobalVarDecl (is_static, vartype, ident, expr, position) -> begin
         match expr with
-        | Some v -> L.declare_global ll_int_t (ident_to_string ident) this_module
+        | Some v -> L.declare_global C.ll_int_t (ident_to_string ident) C.this_module
         | None -> failwith "Translation Error: Global variable must be initialized"
       end
     | FuncDecl (vartype, ident, params, stmt, _) ->
@@ -405,7 +400,7 @@ struct
     | StructDecl (id, decl_ls, _) ->
       begin
         let struct_name = ident_to_string id in
-        let struct_type = L.named_struct_type context struct_name in
+        let struct_type = L.named_struct_type C.context struct_name in
         let field_types = begin
           decl_ls
           |> List.map ~f:(fun el ->
@@ -431,9 +426,9 @@ struct
       | Prog ls -> List.map ls ~f:(fun el -> parse_decl el None)
   
   let print_module_to_file (to_file: string) : unit =
-    L.print_module to_file this_module
+    L.print_module to_file C.this_module
 
   let string_of_file : string =
-    L.string_of_llmodule this_module
+    L.string_of_llmodule C.this_module
 
 end

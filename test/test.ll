@@ -8,8 +8,8 @@ entry:
   store i32 %x, ptr %x1, align 4
   %x2 = load i32, ptr %x1, align 4
   %x3 = load i32, ptr %x1, align 4
-  %add_instr = add i32 %x2, %x3
-  store i32 %add_instr, ptr %y, align 4
+  %mul_instr = mul i32 %x2, %x3
+  store i32 %mul_instr, ptr %y, align 4
   %y4 = load i32, ptr %y, align 4
   ret i32 %y4
 }
@@ -24,5 +24,6 @@ entry:
   store i32 3, ptr %y, align 4
   store i32 7, ptr %z, align 4
   %fn_call_square = call i32 @square(i32 3)
-  ret i32 0
+  %fn_call_square2 = call i32 @square(i32 3)
+  ret i32 %fn_call_square2
 }

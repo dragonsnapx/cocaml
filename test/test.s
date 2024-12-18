@@ -6,9 +6,9 @@
 square:                                 # @square
 	.cfi_startproc
 # %bb.0:                                # %entry
-                                        # kill: def $edi killed $edi def $rdi
+	movl	%edi, %eax
 	movl	%edi, -8(%rsp)
-	leal	(%rdi,%rdi), %eax
+	imull	%edi, %eax
 	movl	%eax, -4(%rsp)
 	retq
 .Lfunc_end0:
@@ -28,7 +28,8 @@ main:                                   # @main
 	movl	$7, 16(%rsp)
 	movl	$3, %edi
 	callq	square@PLT
-	xorl	%eax, %eax
+	movl	$3, %edi
+	callq	square@PLT
 	addq	$24, %rsp
 	.cfi_def_cfa_offset 8
 	retq
