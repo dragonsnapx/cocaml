@@ -7,8 +7,8 @@ module F = Stack_frame.StackFrame
 module DefinedFunc = struct
   type t = {
     fn: L.llvalue;
-    fntp: L.lltype;
-    returns: L.llvalue option;
+    name: S.ident;
+    returns: L.lltype;
     returns_to: L.llbasicblock;
   }
 end
@@ -166,7 +166,7 @@ struct
     );
     parse_stmt body fn |> ignore;
     F.exit_block var_env;
-    Hashtbl.set htbl_functions ~key:label ~data:{ fn = fn; fntp = returns; returns = None; returns_to = entry_block };
+    Hashtbl.set htbl_functions ~key:label ~data:{ name = label; fn = fn; returns = func_type; returns_to = entry_block };
     fn
 
   and parse_expr (expr: S.expr) (scoped_fn: L.llvalue): L.llvalue =
@@ -221,7 +221,9 @@ struct
         |> List.map ~f:(fun el -> parse_expr el scoped_fn)
         |> Array.of_list in
         match Hashtbl.find htbl_functions id with
-        | Some fn -> L.build_call fn.fntp fn.fn args "fun_call" builder
+        | Some fn ->
+            let fn_call_name = "fn_call_" ^ (ident_to_string fn.name) in
+            L.build_call fn.returns fn.fn args fn_call_name  builder
         (* TODO: Forward declaration? *)
         | None -> failwith @@ "Cannot find function call to function: " ^ (ident_to_string id)
       end
@@ -303,31 +305,6 @@ struct
 
       L.position_at_end end_block builder;
       nil_return_type
-    (*
-    | For (init_expr, cond_expr, incr_expr, stmt_body, _) ->
-      parse_expr init_expr scoped_fn |> ignore_llvalue;
-      
-      let cond_block = L.append_block context "for.cond" scoped_fn in
-      let loop_block = L.append_block context "for.loop" scoped_fn in
-      let incr_block = L.append_block context "for.incr" scoped_fn in
-      let end_block = L.append_block context "for.end" scoped_fn in
-
-      L.build_br cond_block builder |> ignore_llvalue;
-      L.position_at_end cond_block builder;
-      let cond_val = parse_expr cond_expr scoped_fn in
-      L.build_cond_br cond_val loop_block end_block builder |> ignore_llvalue;
-
-      L.position_at_end loop_block builder;
-      ignore (parse_stmt stmt_body scoped_fn);
-      L.build_br incr_block builder |> ignore_llvalue;
-
-      L.position_at_end incr_block builder;
-      ignore (parse_expr incr_expr scoped_fn);
-      L.build_br cond_block builder |> ignore_llvalue;
-
-      L.position_at_end end_block builder;
-      nil_return_type
-    *)
     | ExprStmt (expr, _) -> parse_expr expr scoped_fn
     | Block (stmt_body_ls, _) -> 
 

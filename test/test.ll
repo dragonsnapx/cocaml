@@ -23,5 +23,6 @@ entry:
   store i32 %argc, ptr %argc1, align 4
   store i32 3, ptr %y, align 4
   store i32 7, ptr %z, align 4
+  %fn_call_square = call i32 @square(i32 3)
   ret i32 0
 }

@@ -31,3 +31,14 @@ Some Notes: (Will have to be organized before submission)
 
 ### Runner
 Runs LLVM IR, generating an executable. This step will use LLVM itself, and has not been something we've worked on yet. 
+
+
+### Unimplemented C features 
+- Function overloads
+- (*) Scoped variables
+- Linking (#include directives, static)
+- All other preprocessor directives other than #define, #if, #endif
+- (*) goto, break, continue
+- (*) try, catch, throw
+- (*) sizeof, malloc
+- inline, auto, signed/unsigned, union, volatile, const
