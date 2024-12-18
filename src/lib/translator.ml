@@ -254,9 +254,11 @@ struct
         | BitwiseOrAssign -> failwith "TODO"
         | BitwiseXorAssign -> failwith "TODO"
       end
-    | Assign (id, e, _) -> 
-        let ll_v = (F.lookup_variable C.var_env id) in
-        L.build_store ll_v.value (parse_expr e) C.builder
+    | Assign (to_var, from_var, _) -> 
+        let from_val = parse_expr from_var in
+        let to_ptr = ptr_of to_var in
+        L.build_store from_val (to_ptr scoped_fn) C.builder |> ignore;
+        from_val
     | Call (id, exprs, _) -> begin
         let args = exprs
         |> List.map ~f:(fun el -> parse_expr el)
@@ -279,7 +281,7 @@ struct
           L.build_icmp L.Icmp.Eq var_expr zero "log_not_val" C.builder
       | BitwiseNot ->
         L.build_not var_expr "bitwise_not_val" C.builder
-      | Address -> C.ptr_of var
+      | Address -> ptr_of var scoped_fn
       | Dereference ->
           let subtp =
             match var_type with
@@ -289,14 +291,14 @@ struct
           L.build_load (llvartype_of_vartype subtp) var_expr "deref_val" C.builder
       (* TODO: Dedupe code *)
       | PrefixIncrement ->
-          let ptr = C.ptr_of var in
+          let ptr = ptr_of var scoped_fn in
           let old_val = L.build_load var_lltype ptr "old_val" C.builder in
           let one = L.const_int var_lltype 1 in
           let new_val = L.build_add old_val one "inc_val" C.builder in
           ignore (L.build_store new_val ptr C.builder);
           new_val
       | PrefixDecrement ->
-          let ptr = C.ptr_of var in
+          let ptr = ptr_of var scoped_fn in
           let old_val = L.build_load var_lltype ptr "old_val" C.builder in
           let one = L.const_int var_lltype 1 in
           let new_val = L.build_sub old_val one "dec_val" C.builder in
@@ -541,6 +543,44 @@ struct
       );
       nil_return_type
     | None -> nil_return_type
+
+  and ptr_of (expr: S.Expr.t) (scoped_fn: L.llvalue) = 
+    let ptr_to_struct struct_expr =
+      let struct_val = parse_expr struct_expr scoped_fn in
+      let struct_type = expr_to_vartype struct_expr in
+      let ll_struct_type = llvartype_of_vartype struct_type in
+      let tmp_alloca = L.build_alloca ll_struct_type "tmp_struct" C.builder in
+      L.build_store struct_val tmp_alloca C.builder |> ignore;
+      tmp_alloca
+    in
+    let find_struct_child struct_expr child =
+      let struct_type =
+        match expr_to_vartype struct_expr with
+        | Struct s_id -> s_id
+        | Pointer (Struct s_id) -> s_id
+        | _ -> C.raise_transl_err "Cannot access a non-struct as a struct"
+      in
+      let fields = Hashtbl.find_exn htbl_structs struct_type in
+      match List.findi fields ~f:(fun _ (fid, _) -> S.Ident.compare fid child = 0) with
+      | Some (i, (_, ftype)) -> (i, llvartype_of_vartype ftype)
+      | None -> failwith "Field not found"
+    in
+    match expr with
+    | Var (id, _) -> (F.lookup_variable C.var_env id).value
+    | MemberAccess (struct_expr, child_id, _) ->
+      let struct_ptr = ptr_to_struct struct_expr in
+      let (child_index, child_type) = find_struct_child struct_expr child_id in
+      L.build_struct_gep child_type struct_ptr child_index "child_ptr" C.builder
+    | PointerMemberAccess (ptr_expr, child_id, _) ->
+      let ptr_val = parse_expr ptr_expr scoped_fn in
+      let (child_index, child_type) = find_struct_child ptr_expr child_id in
+      L.build_struct_gep child_type ptr_val child_index "child_ptr" C.builder
+    | ArrayAccess (arr_expr, idx_expr, _) ->
+        let arr_val = parse_expr arr_expr scoped_fn in
+        let idx_val = parse_expr idx_expr scoped_fn in
+        let arr_ll_type = arr_val |> L.type_of |> L.element_type in
+        L.build_gep arr_ll_type arr_val [| C.const_llvalue_zero;  idx_val |] "element_ptr" C.builder
+    | _ -> C.raise_transl_err "Cannot take address of an rvalue"
 
   (** Takes a list of statements, outputs LLVM IR code *)
   let rec generate_llvm_ir (prog: S.prog): L.llvalue list =

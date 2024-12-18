@@ -40,15 +40,10 @@ module Make(Param : ModuleParameter) = struct
   let const_ll_char_t = L.const_int ll_char_t
   let const_ll_long_t = L.const_int ll_long_t
 
+  let const_llvalue_zero = const_ll_int_t 0
+
   (* Helpers for LLVM shorthands *)
   let append_block name fn = L.append_block context name fn
   let position_at_end block = L.position_at_end block builder
-
-  (* LLVM routine helpers *)
-  let ptr_of (expr: S.Expr.t) = 
-    match expr with
-    | Var (id, _) -> (lookup_variable var_env id).value
-    | MemberAccess _ | PointerMemberAccess _ | ArrayAccess _ -> failwith "TODO"
-    | _ -> raise_transl_err "Cannot take address of a non-lvalue"
   
 end

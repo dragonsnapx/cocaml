@@ -217,7 +217,7 @@ module Translator_tests =
     (* For simplicity, variable is reused *)
 
     (* z = msg.status *)
-    let access_struct = X.Expr.Assign (id_z, X.Expr.PointerMemberAccess (X.Expr.Var(msg_struct, _pos), X.Ident.create("status"), _pos), _pos)
+    let access_struct = X.Expr.Assign (X.Expr.Var(id_z, _pos), X.Expr.MemberAccess (X.Expr.Var(msg_struct, _pos), X.Ident.create("status"), _pos), _pos)
 
     let program : X.prog = X.Prog [
       X.Decl.FuncDecl (
@@ -255,7 +255,7 @@ module Translator_tests =
     ]
     let first_test _ =
       M.generate_llvm_ir program |> ignore;
-      M.print_module_to_file "../../../test.ll";
+      M.print_module_to_file "../../../test2.ll";
 
       assert_equal 1 1
 

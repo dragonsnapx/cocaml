@@ -36,9 +36,9 @@ entry:
   %message4 = load %Message, ptr %message, align 4
   %tmp_struct = alloca %Message, align 8
   store %Message %message4, ptr %tmp_struct, align 4
-  %field_ptr = getelementptr inbounds %Message, ptr %tmp_struct, i32 0, i32 1
-  %field_val = load i64, ptr %field_ptr, align 4
-  store i64 %field_val, ptr %z, align 4
+  %field_ptr = getelementptr inbounds %Message, ptr %tmp_struct, i32 0, i32 0
+  %field_val = load i32, ptr %field_ptr, align 4
+  store i32 %field_val, ptr %z, align 4
   %fn_call_square = call i32 @square(i32 3)
   %fn_call_square5 = call i32 @square(i32 3)
   ret i32 %fn_call_square5
