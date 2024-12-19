@@ -414,7 +414,13 @@ struct
     | VarDecl S.Var_decl (_, vartype, ident, expr, _) ->
       let lltype = llvartype_of_vartype vartype in
       let llname = ident_to_string ident in
-      let alloca = C.func_entry_builder |> L.build_alloca lltype llname
+      let alloca = 
+        L.insertion_block C.builder 
+        |> L.block_parent 
+        |> L.entry_block
+        |> L.instr_begin
+        |> L.builder_at C.context
+        |> L.build_alloca lltype llname
       in
       F.declare_variable C.var_env ident { tp = vartype; ltp = lltype; value = alloca };
       begin
@@ -477,7 +483,11 @@ struct
     in
     let var_name_str = ident_to_string var_name in
     let alloca =
-      C.func_entry_builder
+      L.insertion_block C.builder
+      |> L.block_parent
+      |> L.entry_block
+      |> L.instr_begin
+      |> L.builder_at C.context
       |> L.build_alloca struct_type var_name_str
     in
     F.declare_variable C.var_env var_name { tp = Struct struct_name; ltp = struct_type; value = alloca };

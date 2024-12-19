@@ -134,10 +134,15 @@ module Lexer_tests =
         match prog with
           | S.Prog [] -> true
           | _ -> false
+
+      let unwrap_result path =
+        match M.parse_c_to_ast path with
+        | Ok s -> s
+        | Error _ -> failwith "Failed test"
     
       let test_parser_simple _ = 
         let input_path = "../../../test/simple.c" in
-        let result = M.parse_c_to_ast input_path in
+        let result = unwrap_result input_path in
         
         let output_path = "../../../test/simple_ast.txt" in
         write_file output_path (prog_to_sexp result);
@@ -147,7 +152,7 @@ module Lexer_tests =
 
       let test_parser_switch _ = 
         let input_path = "../../../test/switch.c" in
-        let result = M.parse_c_to_ast input_path in
+        let result = unwrap_result input_path in
         
         let output_path = "../../../test/switch_ast.txt" in
         write_file output_path (prog_to_sexp result);
@@ -157,7 +162,7 @@ module Lexer_tests =
 
       let test_parser_loop _ = 
         let input_path = "../../../test/loop.c" in
-        let result = M.parse_c_to_ast input_path in
+        let result = unwrap_result input_path in
         
         let output_path = "../../../test/loop_ast.txt" in
         write_file output_path (prog_to_sexp result);
@@ -167,7 +172,7 @@ module Lexer_tests =
 
       let test_parser_loop_undefined _ = 
         let input_path = "../../../test/loop_undefined_variable.c" in
-        let result = M.parse_c_to_ast input_path in
+        let result = unwrap_result input_path in
         
         let output_path = "../../../test/loop_undefined_variable_ast.txt" in
         write_file output_path (prog_to_sexp result);
@@ -177,7 +182,7 @@ module Lexer_tests =
 
       let test_parser_no_colon _ = 
         let input_path = "../../../test/no_colon.c" in
-        let result = M.parse_c_to_ast input_path in
+        let result = unwrap_result input_path in
         
         let output_path = "../../../test/no_colon.txt" in
         write_file output_path (prog_to_sexp result);
@@ -187,7 +192,7 @@ module Lexer_tests =
       
       let test_parser_full_c _ = 
         let input_path = "../../../test/large.c" in
-        let result = M.parse_c_to_ast input_path in
+        let result = unwrap_result input_path in
         
         let output_path = "../../../test/large.txt" in
         write_file output_path (prog_to_sexp result);
@@ -312,15 +317,15 @@ module Translator_tests =
 
     let series = 
       "Translator tests" >::: [
-        "Example test" >:: first_test
+        "Translator test" >:: first_test
       ]
   end
-
 let series =
   "Tests" >:::
   [ 
     Lexer_tests.series
   ; Parser_tests.series
-  ; Translator_tests.series ]
+  ; Translator_tests.series
+  ]
 
 let () = run_test_tt_main series
