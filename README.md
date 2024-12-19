@@ -85,6 +85,8 @@ int main() {
 
 into LLVM IR (viewable at `test/loop.ll`), then into assembly (viewable at `test/loop.s`), and finally into an executable.
 
+![alt text](image.png)
+
 
 ## Previous Checkpoints
 
