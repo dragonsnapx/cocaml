@@ -3,7 +3,7 @@ Cocaml is a C compiler, leveraging Ocaml's functionality to translate and compil
 
 ## Installation
 
-Cocaml requires llvm (>= 19) and clang to be installed. Depending on the environment you may need to manually link `llc` to $PATH as some package managers like homebrew do not link lld; For other environments, you may need to install `llc` (>= 20) manually and add to path. 
+Cocaml requires llvm (>= 19) and clang to be installed. Depending on the environment you may need to manually link `llc` to $PATH as some package managers like homebrew do not link lld; For other environments, you may need to install `llc` (>= 20) manually and add to path.
 
 Due to limitations of the `LLVM` library, it does not run on macOS when installed with homebrew on ARM Macs.
 

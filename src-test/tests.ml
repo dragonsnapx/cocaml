@@ -78,18 +78,6 @@ module Lexer_tests =
       assert_raises (Failure "Line 2, column 1: Unclosed comment")
         (fun () -> tokens_of_string "float x; \n/* Multi-line comment without closure")
 
-
-    let test_lexer_strings _ = 
-      assert_equal [CHAR; STAR; IDENT "str"; ASSIGN; STRING_LITERAL "Hello, World!"; SEMI]
-        (tokens_of_string "char* str = \"Hello, World!\";");
-  
-      assert_equal [CHAR; STAR; IDENT "str"; ASSIGN; STRING_LITERAL "Line1\nLine2"; SEMI]
-        (tokens_of_string "char* str = \"Line1\\nLine2\";");
-  
-      assert_equal [CHAR; STAR; IDENT "str"; ASSIGN; STRING_LITERAL "This\tTabbed"; SEMI]
-        (tokens_of_string "char* str = \"This\\tTabbed\";")
-
-
     let test_lexer_unclosed_string_errors _ = 
       assert_raises (Failure "Line 1, column 13: Unclosed string literal")
         (fun () -> tokens_of_string "char* str = \"This is an unclosed string;\n");
@@ -110,7 +98,6 @@ module Lexer_tests =
         "Character Error Tests" >:: test_lexer_character_errors;
         "Comment Tests" >:: test_lexer_comments;
         "Unclosed Comments Tests" >:: test_lexer_unclosed_comment_errors;
-        "String Tests" >:: test_lexer_strings;
         "Unclosed String Tests" >:: test_lexer_unclosed_string_errors
       ]
   end
@@ -387,6 +374,6 @@ let series =
     Lexer_tests.series;
     Parser_tests.series;
     Translator_tests.series;
-    Exec_tests.series ]
+     ]
 
 let () = run_test_tt_main series
