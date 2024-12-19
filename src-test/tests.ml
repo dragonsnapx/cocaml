@@ -135,81 +135,141 @@ module Lexer_tests =
           | S.Prog [] -> true
           | _ -> false
 
-      let unwrap_result path =
-        match M.parse_c_to_ast path with
-        | Ok s -> s
-        | Error _ -> failwith "Failed test"
+      (* Helper function for when we expect a valid AST *)
+      let expect_valid_prog (result: M.parse_result) (output_path: string) (test_msg: string) =
+        match result with
+          | Ok prog ->
+              write_file output_path (prog_to_sexp prog);
+              assert_bool test_msg (not (is_prog_empty prog))
+          | Error msg ->
+              Printf.eprintf "Error: %s\n" msg;
+              assert_failure "Expected a valid AST, but parsing failed."
+
+      (* Helper function for when we expect an erroneous AST *)
+      let expect_parse_error (result: M.parse_result) (expected_msg: string) (test_msg: string) =
+        match result with
+          | Ok _ ->
+            assert_failure "Expected a parsing error, but got a valid AST."
+        | Error msg ->
+            assert_bool test_msg (String.equal msg expected_msg)
     
+      (* Heuristic #1: The number of function definitions should match our expectation *)
+      let count_function_definitions (result: M.parse_result) : int =
+        match result with
+        | Ok (Prog decls) ->
+            List.count decls ~f:(function
+              | S.Decl.FuncDecl _ -> true
+              | _ -> false)
+        | Error _ -> 0
+
+      (* Heuristic #2: The number of left and right brackets should be the same *)
+      let check_brackets_equal (result: M.parse_result) : bool =
+        match result with
+        | Ok (Prog decls) ->
+            (* Traverse statements to count opening and closing braces *)
+            let rec traverse_stmt (open_brace, close_brace) stmt =
+              match stmt with
+              | S.Stmt.Block (stmts, _) ->
+                  List.fold_left stmts ~init:(open_brace + 1, close_brace + 1) ~f:traverse_stmt
+              | S.Stmt.If (_, then_stmt, Some else_stmt, _) ->
+                  traverse_stmt (traverse_stmt (open_brace, close_brace) then_stmt) else_stmt
+              | S.Stmt.If (_, then_stmt, None, _)
+              | S.Stmt.While (_, then_stmt, _)
+              | S.Stmt.DoWhile (then_stmt, _, _) ->
+                  traverse_stmt (open_brace, close_brace) then_stmt
+              | S.Stmt.For (_, _, _, body, _) ->
+                  traverse_stmt (open_brace, close_brace) body
+              | _ -> (open_brace, close_brace)
+            in
+      
+            (* Traverse declarations to count opening and closing braces *)
+            let traverse_decl (open_brace, close_brace) decl =
+              match decl with
+              | S.Decl.FuncDecl (_, _, _, body, _) ->
+                  traverse_stmt (open_brace + 1, close_brace + 1) body
+              | _ -> (open_brace, close_brace)
+            in
+      
+            (* Count braces across all declarations *)
+            let (open_brace, close_brace) = List.fold_left decls ~init:(0, 0) ~f:traverse_decl in
+            open_brace = close_brace
+        | Error _ -> false
+      
+      
       let test_parser_simple _ = 
         let input_path = "../../../test/simple.c" in
-        let result = unwrap_result input_path in
-        
+        let result = M.parse_c_to_ast input_path in
         let output_path = "../../../test/simple_ast.txt" in
-        write_file output_path (prog_to_sexp result);
-        assert_bool
-          "The simple AST should not be invalid!"
-          (not (is_prog_empty result))
+        expect_valid_prog result output_path "The simple AST should not be invalid!"
+
+      let test_parser_simple_heuristics _ = 
+        let input_path = "../../../test/simple.c" in
+        let result = M.parse_c_to_ast input_path in
+        assert_equal (count_function_definitions result) 1;
+        assert_bool "Brackets should be balanced!" (check_brackets_equal result)
 
       let test_parser_switch _ = 
         let input_path = "../../../test/switch.c" in
-        let result = unwrap_result input_path in
-        
+        let result = M.parse_c_to_ast input_path in
         let output_path = "../../../test/switch_ast.txt" in
-        write_file output_path (prog_to_sexp result);
-        assert_bool
-          "The switch AST should not be invalid!"
-          (not (is_prog_empty result))
+        expect_valid_prog result output_path "The switch AST should not be invalid!"
+
+      let test_parser_switch_heuristics _ = 
+        let input_path = "../../../test/switch.c" in
+        let result = M.parse_c_to_ast input_path in
+        assert_equal (count_function_definitions result) 1;
+        assert_bool "Brackets should be balanced!" (check_brackets_equal result)
 
       let test_parser_loop _ = 
         let input_path = "../../../test/loop.c" in
-        let result = unwrap_result input_path in
-        
+        let result = M.parse_c_to_ast input_path in
         let output_path = "../../../test/loop_ast.txt" in
-        write_file output_path (prog_to_sexp result);
-        assert_bool
-          "The loop AST should not be invalid!"
-          (not (is_prog_empty result))
+        expect_valid_prog result output_path "The loop AST should not be invalid!"
 
-      let test_parser_loop_undefined _ = 
+      let test_parser_loop_heuristics _ = 
+        let input_path = "../../../test/loop.c" in
+        let result = M.parse_c_to_ast input_path in
+        assert_equal (count_function_definitions result) 1;
+        assert_bool "Brackets should be balanced!" (check_brackets_equal result)
+
+      let test_parser_loop_undefined_variable _ = 
         let input_path = "../../../test/loop_undefined_variable.c" in
-        let result = unwrap_result input_path in
-        
+        let result = M.parse_c_to_ast input_path in
         let output_path = "../../../test/loop_undefined_variable_ast.txt" in
-        write_file output_path (prog_to_sexp result);
-        assert_bool
-          "The loop (with an undefined variable) AST should not be invalid!"
-          (not (is_prog_empty result))
+        expect_valid_prog result output_path "The loop (with an undefined variable) AST should not be invalid!"
 
       let test_parser_no_colon _ = 
         let input_path = "../../../test/no_colon.c" in
-        let result = unwrap_result input_path in
-        
-        let output_path = "../../../test/no_colon.txt" in
-        write_file output_path (prog_to_sexp result);
-        assert_bool
-          "The colon-missing AST should not be valid!"
-          (is_prog_empty result)
-      
+        let result = M.parse_c_to_ast input_path in
+        expect_parse_error result "Syntax error at line 3, column 9" "File missing a semicolon should give an invalid AST!"
+
       let test_parser_full_c _ = 
         let input_path = "../../../test/large.c" in
-        let result = unwrap_result input_path in
-        
-        let output_path = "../../../test/large.txt" in
-        write_file output_path (prog_to_sexp result);
-        assert_bool
-          "The full c AST should not be invalid!"
-          (not (is_prog_empty result))
+        let result = M.parse_c_to_ast input_path in
+        let output_path = "../../../test/large_ast.txt" in
+        expect_valid_prog result output_path "The large AST should not be invalid!"
+
+      let test_parser_full_c_heuristics _ = 
+        let input_path = "../../../test/large.c" in
+        let result = M.parse_c_to_ast input_path in
+        assert_equal (count_function_definitions result) 3;
+        assert_bool "Brackets should be balanced!" (check_brackets_equal result)
         
       let series =
         "Parser Tests" >::: [
-          "Parser Simple Test" >:: test_parser_simple;
-          "Parser Switch Test" >:: test_parser_switch;
-          "Parser Loop Test" >:: test_parser_loop;
-          "Parser Loop with Undefined Test" >:: test_parser_loop_undefined;
-          "Parser Missing Colon Test" >:: test_parser_no_colon;
-          "Parser Full C Test" >:: test_parser_full_c
+          "Parser Base Simple Test" >:: test_parser_simple;
+          "Parser Heuristics Simple Test" >:: test_parser_simple_heuristics;
+          "Parser Base Switch Test" >:: test_parser_switch;
+          "Parser Heuristics Switch Test" >:: test_parser_switch_heuristics;
+          "Parser Base Loop Test" >:: test_parser_loop;
+          "Parser Heuristics Loop Test" >:: test_parser_loop_heuristics;
+          "Parser Base Undefined Loop Test" >:: test_parser_loop_undefined_variable;
+          "Parser Base Missing Colon Test" >:: test_parser_no_colon;
+          "Parser Base Full C Test" >:: test_parser_full_c;
+          "Parser Heuristics Full C Test" >:: test_parser_full_c_heuristics
         ]
     end
+
 
 module Translator_tests =
   struct
@@ -317,15 +377,15 @@ module Translator_tests =
 
     let series = 
       "Translator tests" >::: [
-        "Translator test" >:: first_test
+        "Example test" >:: first_test
       ]
   end
+
 let series =
   "Tests" >:::
   [ 
     Lexer_tests.series
   ; Parser_tests.series
-  ; Translator_tests.series
-  ]
+  ; Translator_tests.series ]
 
 let () = run_test_tt_main series
