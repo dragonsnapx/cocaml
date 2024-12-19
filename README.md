@@ -1,14 +1,27 @@
-# Code Checkpoint
+# Cocaml - A C compiler, built with Ocaml
+Cocaml is a C compiler, leveraging Ocaml's functionality to translate and compile C.
 
-For this checkpoint, we focused on building out the main functionality of each piece of a minimally-viable compiler, including the lexer, parser, AST design, and translator. Most of our time was spent doing the up-front work on learning the various tools (i.e. OCamllex, Menhir, and LLVM) and fixing build issues. As of 12/6, we were able to resolve just about all compilation issues within each of the pieces, but unfortunately,  our code checkpoint submission still contains `dune build` that we've yet to figure out, which prevented us from being able to run some of our tests in `test/test.ml`.  
+## Installation
+Cocaml requires llvm (>= 19) and clang to be installed. Depending on the environment (macOS and some Linux distros) you may need to manually link `llc` to $PATH as some package managers like homebrew do not link lld.
 
-Nonetheless, we feel we are in reasonably good place, having built out the majority of the logic that will go into our final product, as well as the logic to test it. These will no doubt need refining, but we fix the remaining build issues (which, unlike the ones we had fixed, don't seem to do with any logical fallacies of our pieces), we'll be able to focus on debugging, and implementing the remaining behavior.  
+## Usage
+### As a library
+Refer to `cocaml_main.mli` for the full spec.
 
+### As an executable
+```
+Usage: ./runner.exe [options] <filename>
+ Options:
+--compile              : Compiles the C file into an executable (default behavior).
+--preprocess-only      : Outputs the preprocessed result of the input C file.
+--to-llvm-ir           : Only outputs the LLVM IR.
+--llvm                 : Compiles LLVM IR code to an executable.
+--help                 : Show this help message.
+```
 
 ## Structure
 
-### Preprocessor
-Transforms preprocessor directives (`#define`, `#include`, etc.) prior to processing. This is a "time-permitting" goal of our implementation, and we did not work on this during the checkpoint.
+Cocaml compiles correct C code into LLVM IR, which then uses LLVM's `llc` to convert it assembly, then uses `clang` to compile to an object file.
 
 ### Main
 Main interface from our compiler, which will take a .c file and has endpoints to return one of an AST, LLVM IR, or an executable. Currently, we've only implemented the `parse_c_to_ast` endpoint, which is used in our tests for our set of Parser tests. Once our parser's behavior is better verified, we will add our other endpoints (note that already implemented a `generate_llvm_ir` function in the translator to help test it independently, which the eventual `generate_llvm` endpoint in Main will closely resemble)
@@ -32,13 +45,30 @@ Some Notes: (Will have to be organized before submission)
 ### Runner
 Runs LLVM IR, generating an executable. This step will use LLVM itself, and has not been something we've worked on yet. 
 
+## Examples
 
-### Unimplemented C features 
-- Function overloads
-- (*) Scoped variables
-- Linking (#include directives, static)
-- All other preprocessor directives other than #define, #if, #endif
-- (*) goto, break, continue
-- (*) try, catch, throw
-- (*) sizeof, malloc
-- inline, auto, signed/unsigned, union, volatile, const
+Cocaml succesfully compiles the following program:
+```c
+int square(int x) {
+  return x * x;
+}
+
+int main() {
+  int x = 0;
+  for (int i = 0; i < 10; i = i + 1) {
+    x = square(x);
+  }
+  return x;
+}
+```
+
+into LLVM IR (viewable at `result.ll`), then into assembly (viewable at `result.s`), and finally into an executable.
+
+
+## Previous Checkpoints
+
+### Code Checkpoint
+
+For this checkpoint, we focused on building out the main functionality of each piece of a minimally-viable compiler, including the lexer, parser, AST design, and translator. Most of our time was spent doing the up-front work on learning the various tools (i.e. OCamllex, Menhir, and LLVM) and fixing build issues. As of 12/6, we were able to resolve just about all compilation issues within each of the pieces, but unfortunately,  our code checkpoint submission still contains `dune build` that we've yet to figure out, which prevented us from being able to run some of our tests in `test/test.ml`.  
+
+Nonetheless, we feel we are in reasonably good place, having built out the majority of the logic that will go into our final product, as well as the logic to test it. These will no doubt need refining, but we fix the remaining build issues (which, unlike the ones we had fixed, don't seem to do with any logical fallacies of our pieces), we'll be able to focus on debugging, and implementing the remaining behavior.  
