@@ -16,6 +16,8 @@ module Ident =
     let create (name: string) : t = Ident name
   end
 
+[@@@coverage off]
+
 module VarType = 
   struct
     type t =
@@ -156,6 +158,9 @@ module Decl =
   end
 
 type prog = Prog of Decl.t list [@@deriving compare, sexp, equal, show]
+
+[@@@coverage on]
+
 
 let is_prog_empty (p: prog) : bool =
   match p with

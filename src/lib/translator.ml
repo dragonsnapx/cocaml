@@ -46,7 +46,7 @@ struct
         try
           (Hashtbl.find_exn htbl_types custom)
         with Not_found_s _ ->
-          C.raise_transl_err @@ "Translation Error: Undefined type: " ^ (ident_to_string custom)
+          C.raise_transl_err @@ "Translation Error: Undefined type: " ^ (ident_to_string custom) [@coverage off]
       end
     | Struct str -> Hashtbl.find_exn htbl_types str
     | Array _ -> C.ll_gen_ptr_t
@@ -65,8 +65,8 @@ struct
         let fields = Hashtbl.find_exn htbl_structs s_id in
         (match List.find fields ~f:(fun (fid, _) -> S.Ident.compare fid accessor = 0) with
           | Some (_, ft) -> ft
-          | None -> C.raise_transl_err "Unknown struct field")
-      | _ -> C.raise_transl_err "MemberAccess on non-struct type")
+          | None -> C.raise_transl_err "Unknown struct field") [@coverage off]
+      | _ -> C.raise_transl_err "MemberAccess on non-struct type") [@coverage off]
     end
     | PointerMemberAccess (obj, child_id, _) -> begin
         match expr_to_vartype obj with
@@ -77,27 +77,27 @@ struct
             begin
               match List.find f ~f:(fun (fid, _) -> S.Ident.compare fid child_id = 0) with
               | Some (_, ft) -> ft
-              | None -> C.raise_transl_err "Attempted to access an unknown struct field"
+              | None -> C.raise_transl_err "Attempted to access an unknown struct field" [@coverage off]
             end
-          | None -> C.raise_transl_err "Attempted to access a pointer of a member of a non-existent field."
+          | None -> C.raise_transl_err "Attempted to access a pointer of a member of a non-existent field." [@coverage off]
         end
-        | _ -> C.raise_transl_err "Attempted to access a pointer of a member on a non-pointer type."
+        | _ -> C.raise_transl_err "Attempted to access a pointer of a member on a non-pointer type." [@coverage off]
       end
     | ArrayAccess (expr, _, _) -> begin
       match expr_to_vartype expr with
       | Pointer subtp -> subtp
-      | _ -> C.raise_transl_err "Array access on non-pointer type"
+      | _ -> C.raise_transl_err "Array access on non-pointer type" [@coverage off]
       end
     | Var (ident, _) -> begin
       try (F.lookup_variable C.var_env ident).tp
-        with Not_found_s _ -> C.raise_transl_err @@ " Cannot infer type of " ^ (ident_to_string ident)
+        with Not_found_s _ -> C.raise_transl_err @@ " Cannot infer type of " ^ (ident_to_string ident) [@coverage off]
       end
     | BinOp _ -> S.VarType.Int
     | Assign (_, expr, _) -> expr_to_vartype expr
     | Call (expr, _, _) -> begin
         match Hashtbl.find htbl_functions expr with
         | Some s -> s.fnvtp
-        | None -> C.raise_transl_err "Cannot infer return type of function"
+        | None -> C.raise_transl_err "Cannot infer return type of function" [@coverage off]
       end
     | PrefixUnOp (prefix_un_op, expr, _) -> 
       begin
@@ -110,7 +110,7 @@ struct
         | Dereference -> begin
             match t with
             | Pointer subt -> subt
-            | _ -> C.raise_transl_err "Attempted to dereference a non-pointer"
+            | _ -> C.raise_transl_err "Attempted to dereference a non-pointer" [@coverage off]
           end
         | PrefixIncrement | PrefixDecrement -> t
       end
@@ -125,7 +125,7 @@ struct
     | Var (id, _) -> 
       begin
         try (F.lookup_variable C.var_env id).value
-        with Not_found_s _  -> C.raise_transl_err @@ "Cannot extract value from " ^ (ident_to_string id)
+        with Not_found_s _  -> C.raise_transl_err @@ "Cannot extract value from " ^ (ident_to_string id) [@coverage off]
       end
     | _ -> C.raise_transl_err "extract_expr_value must be called on literal"
 
@@ -168,19 +168,19 @@ struct
       let s_id =
         match struct_type with
         | Struct sid -> sid
-        | _ -> C.raise_transl_err ("MemberAccess on a non-struct type: " ^ (ident_to_string id))
+        | _ -> C.raise_transl_err ("MemberAccess on a non-struct type: " ^ (ident_to_string id)) [@coverage off]
       in
 
       let fields = 
         match Hashtbl.find htbl_structs s_id with
         | Some fs -> fs
-        | None -> C.raise_transl_err ("Cannot access field for struct: " ^ (ident_to_string s_id))
+        | None -> C.raise_transl_err ("Cannot access field for struct: " ^ (ident_to_string s_id)) [@coverage off]
       in
 
       let (field_index, (_, field_tp)) =
         match List.findi fields ~f:(fun _ (fid, _) -> S.Ident.compare fid id = 0) with
         | Some (i, pair) -> (i, pair)
-        | None -> C.raise_transl_err ("Translation Error: Unknown field " ^ (ident_to_string id))
+        | None -> C.raise_transl_err ("Translation Error: Unknown field " ^ (ident_to_string id)) [@coverage off]
       in
 
       let ll_struct_type = llvartype_of_vartype struct_type in
@@ -195,19 +195,19 @@ struct
       let s_id =
         match ptr_type with
         | Pointer (Struct sid) -> sid
-        | _ -> C.raise_transl_err ("Illegal member access: " ^ (ident_to_string id))
+        | _ -> C.raise_transl_err ("Illegal member access: " ^ (ident_to_string id)) [@coverage off]
       in
 
       let fields =
         match Hashtbl.find htbl_structs s_id with
         | Some fs -> fs
-        | None -> C.raise_transl_err ("Cannot access field for struct: " ^ (ident_to_string s_id))
+        | None -> C.raise_transl_err ("Cannot access field for struct: " ^ (ident_to_string s_id)) [@coverage off]
       in  
 
       let (field_index, (_, field_tp)) =
         match List.findi fields ~f:(fun _ (fid, _) -> S.Ident.compare fid id = 0) with
         | Some (i, pair) -> (i, pair)
-        | None -> C.raise_transl_err ("Translation Error: Unknown field " ^ (ident_to_string id))
+        | None -> C.raise_transl_err ("Translation Error: Unknown field " ^ (ident_to_string id)) [@coverage off]
       in
 
       let ll_struct_type = llvartype_of_vartype (Struct s_id) in
@@ -255,7 +255,7 @@ struct
         | Some fn ->
             let fn_call_name = "fn_call_" ^ (ident_to_string fn.name) in
             L.build_call fn.returns fn.fn args fn_call_name  C.builder
-        | None -> C.raise_transl_err @@ "Cannot find function call to function: " ^ (ident_to_string id)
+        | None -> C.raise_transl_err @@ "Cannot find function call to function: " ^ (ident_to_string id) [@coverage off]
       end
     | PrefixUnOp (prefix_un_op, var, _) -> begin
       let var_type = expr_to_vartype var in
@@ -440,7 +440,7 @@ struct
     | VarDecl S.Var_decl (_, _, ident, expr, _) -> begin
         match expr with
         | Some _ -> L.declare_global C.ll_int_t (ident_to_string ident) C.this_module
-        | None -> C.raise_transl_err "Global variable must be initialized"
+        | None -> C.raise_transl_err "Global variable must be initialized" [@coverage off]
       end
     | FuncDecl (vartype, ident, params, stmt, _) -> declare_function ident vartype params stmt
     | TypedefDecl s -> typedef_declare s
@@ -448,7 +448,7 @@ struct
     | StructInit s -> 
       match scoped_fn with
       | Some fn -> initialize_struct (s, fn)
-      | None -> C.raise_transl_err "Struct cannot be initialized in a context-less environment"
+      | None -> C.raise_transl_err "Struct cannot be initialized in a context-less environment" [@coverage off]
 
   and declare_struct (S.Struct_decl (struct_name, _, decl_ls_opt, _)) =
     let struct_name_str = ident_to_string struct_name in
@@ -497,7 +497,7 @@ struct
       let fields =
         match Hashtbl.find htbl_structs struct_name with
         | Some fs -> fs
-        | None -> C.raise_transl_err ("Unknown struct fields: " ^ (ident_to_string struct_name))
+        | None -> C.raise_transl_err ("Unknown struct fields: " ^ (ident_to_string struct_name)) [@coverage off]
       in
       List.iteri fields ~f:(fun i (fid, ft) -> 
         let dest_ptr = L.build_struct_gep struct_type alloca i (var_name_str ^ "_field_ptr") C.builder in
@@ -522,12 +522,12 @@ struct
         match expr_to_vartype struct_expr with
         | Struct s_id -> s_id
         | Pointer (Struct s_id) -> s_id
-        | _ -> C.raise_transl_err "Cannot access a non-struct as a struct"
+        | _ -> C.raise_transl_err "Cannot access a non-struct as a struct" [@coverage off]
       in
       let fields = Hashtbl.find_exn htbl_structs struct_type in
       match List.findi fields ~f:(fun _ (fid, _) -> S.Ident.compare fid child = 0) with
       | Some (i, (_, ftype)) -> (i, llvartype_of_vartype ftype)
-      | None -> C.raise_transl_err "Attempted to access a non-existant field inside a struct"
+      | None -> C.raise_transl_err "Attempted to access a non-existant field inside a struct" [@coverage off]
     in
     match expr with
     | Var (id, _) -> (F.lookup_variable C.var_env id).value
@@ -544,16 +544,16 @@ struct
         let idx_val = parse_expr idx_expr scoped_fn in
         let arr_ll_type = arr_val |> L.type_of |> L.element_type in
         L.build_gep arr_ll_type arr_val [| C.const_llvalue_zero;  idx_val |] "element_ptr" C.builder
-    | _ -> C.raise_transl_err "Cannot take address of an rvalue"
+    | _ -> C.raise_transl_err "Cannot take address of an rvalue" [@coverage off]
 
   and typedef_declare (S.Typedef_decl (from_vartype, to_vartype, _)) =
     begin
       match from_vartype with
-      | Pointer _ | Void -> C.raise_transl_err "Cannot typecast pointer or void." 
+      | Pointer _ | Void -> C.raise_transl_err "Cannot typecast pointer or void." [@coverage off]
       | Typedef custom  -> begin
         match Hashtbl.find htbl_types custom with
         | Some tp -> Hashtbl.set htbl_types ~key:custom ~data:tp; nil_return_type
-        | None -> C.raise_transl_err "Could not typecast from unknown type to another."
+        | None -> C.raise_transl_err "Could not typecast from unknown type to another." [@coverage off]
       end
       | _ -> let lltype = llvartype_of_vartype from_vartype in
         Hashtbl.set htbl_types ~key:to_vartype ~data:lltype;
