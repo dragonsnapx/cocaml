@@ -229,7 +229,7 @@ module Lexer_tests =
       let test_parser_loop_heuristics _ = 
         let input_path = "../../../test/loop.c" in
         let result = M.parse_c_to_ast input_path in
-        assert_equal (count_function_definitions result) 1;
+        assert_equal (count_function_definitions result) 2;
         assert_bool "Brackets should be balanced!" (check_brackets_equal result)
 
       let test_parser_loop_undefined_variable _ = 
@@ -384,8 +384,9 @@ module Translator_tests =
 let series =
   "Tests" >:::
   [ 
-    Lexer_tests.series
-  ; Parser_tests.series
-  ; Translator_tests.series ]
+    Lexer_tests.series;
+    Parser_tests.series;
+    Translator_tests.series;
+    Exec_tests.series ]
 
 let () = run_test_tt_main series
