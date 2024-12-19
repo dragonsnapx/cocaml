@@ -2,7 +2,10 @@
 Cocaml is a C compiler, leveraging Ocaml's functionality to translate and compile C.
 
 ## Installation
-Cocaml requires llvm (>= 19) and clang to be installed. Depending on the environment (macOS and some Linux distros) you may need to manually link `llc` to $PATH as some package managers like homebrew do not link lld; For other distros, you may need to install `lld` manually.
+
+Cocaml requires llvm (>= 19) and clang to be installed. Depending on the environment you may need to manually link `llc` to $PATH as some package managers like homebrew do not link lld; For other distros, you may need to install `llc` (>= 20) manually and add to path. 
+
+Due to limitations of the `LLVM` library, it does not run on macOS when installed with homebrew on ARM Macs.
 
 ## Usage
 ### As a library
@@ -22,6 +25,9 @@ Usage: ./runner.exe [options] <filename>
 ## Structure
 
 Cocaml compiles correct C code into LLVM IR, which then uses LLVM's `llc` to convert it assembly, then uses `clang` to compile to an object file.
+```
+(Runner ->) Main -> Lexer -> Parser -> Translator -> `llc` -> `clang` -> Executable
+```
 
 ### Main (cocaml_main)
 Main interface from cocaml, taking a .c file and has endpoints to return one of an AST, LLVM IR, or an executable. See `cocaml_main` for the full spec.
@@ -35,6 +41,7 @@ Given a stream of tokens passed from the Lexer, the Parser checks this stream ag
 ### Translator
 Translates AST tree to LLVM IR (example available below) and returns any errors or syntactical issues via semantic analysis. The task of semantic analysis is made easier by directly using the OCaml `llvm` library, which allows us to interact with the translated code directly.
 
+Some interesting facts about LLVM IR generation:
 - LLVM calls `alloca` before all instruction sets - this means that even if a local variable appears much later down the line, it still is "allocated" at the beginning of the code block. 
 - LLVM bindings with OCaml has a lot of "magic" behind; even though it is still very functional, it has elements such as the `module`, a mutable variable that acts as a file that is used to push instruction sets, which can be manipulated to output to an output stream or a file.
 - It also does a lot of optimizations *pre* translation and *post* translation & compilation. For instance, declaring `int x = 3 + 4` generates the LLVM IR equivalent of `int x = 7`, and skips generating 
@@ -43,17 +50,21 @@ Translates AST tree to LLVM IR (example available below) and returns any errors 
 Runs LLVM IR, generating an executable. This step will use LLVM itself, and has not been something we've worked on yet. 
 
 ## Challenges & Design Choices
-- This was our first compiler, so there was a lot of background research into how compilers are structured and figuring out which would be the best choice. We landed on LLVM because it meant we could get closer to performance to GCC/Clang, and did not have to worry too much about memory alignment and register allocation.
+- This was our first compiler, so there was a lot of background research into how compilers are structured and figuring out which would be the best choice. We landed on LLVM because it meant we could get closer to performance to GCC/Clang, and did not have to worry too much about memory alignment, register allocation and portability.
 - Thanks to using LLVM, we were able to get very similar performance to GCC/Clang at times, for arithmetic (when both compiled with `-O2`, int & float).
 - The translator was extremly hard to debug and test for various reasons:
     - The LLVM bindings for Ocaml are not purely functional & has some mutation in the background, making it very hard to debug.
     - Error messages that are cryptic (i.e. Exited with -10) and fails silently at times
     - Testing was done using lldb mostly, looking at registers/stack frame & valgrind to check if program is valid.
     - Comparing LLVM IR/Assembly was impossible since using `clang` to compile C code into LLVM IR and our compiler **yielded different assembly/IR but functionally the same program.**
-    - Due to difficulty in testing, the translator has comprehensive error messages to
+    - Due to difficulty in testing, the translator has comprehensive error messages when encountering an error.
 - Menhir was used to generate the parser/lexer, which allowed flexibility in parsing/lexing, as well as debugging ASTs.
 - Typing was crucial, so we made sure to leverage Ocaml's functionality to get rigid types, which can be checked out at `src/lib/syntax_node.ml`
-
+- Some features remain unimplemented due to difficulty & time constraints. Examples:
+    - n-dimensional arrays - currently, only one dimensional arrays are supported
+    - static variables
+    - attributes (__attribtue__, [[likely]], etc.)
+    - goto, extern, __asm__, etc.
 
 ## Example
 

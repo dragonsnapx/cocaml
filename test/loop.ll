@@ -1,45 +1,42 @@
 ; ModuleID = 'example_module'
 source_filename = "example_module"
 
-%Message = type { i32, i64 }
-
 define i32 @square(i32 %x) {
 entry:
-  %y = alloca i32, align 4
   %x1 = alloca i32, align 4
   store i32 %x, ptr %x1, align 4
   %x2 = load i32, ptr %x1, align 4
   %x3 = load i32, ptr %x1, align 4
-  %mul_instr = mul i32 %x2, %x3
-  store i32 %mul_instr, ptr %y, align 4
-  %y4 = load i32, ptr %y, align 4
-  ret i32 %y4
+  %Times_instr = mul i32 %x2, %x3
+  ret i32 %Times_instr
 }
 
-define i32 @main(i32 %argc) {
+define i32 @main() {
 entry:
-  %z = alloca i32, align 4
-  %pd = alloca i32, align 4
-  %p = alloca ptr, align 8
   %x = alloca i32, align 4
-  %y = alloca i32, align 4
-  %message = alloca %Message, align 8
-  %argc1 = alloca i32, align 4
-  store i32 %argc, ptr %argc1, align 4
-  store i32 3, ptr %y, align 4
+  store i32 0, ptr %x, align 4
+  %i = alloca i32, align 4
+  store i32 0, ptr %i, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.incr, %entry
+  %i1 = load i32, ptr %i, align 4
+  %Less_icmp = icmp slt i32 %i1, 10
+  br i1 %Less_icmp, label %for.loop, label %for.end
+
+for.loop:                                         ; preds = %for.cond
   %x2 = load i32, ptr %x, align 4
-  store ptr %x, ptr %p, align 8
-  %p3 = load ptr, ptr %p, align 8
-  %deref_val = load i32, ptr %p3, align 4
-  store i32 %deref_val, ptr %pd, align 4
-  store i32 7, ptr %z, align 4
-  %message4 = load %Message, ptr %message, align 4
-  %tmp_struct = alloca %Message, align 8
-  store %Message %message4, ptr %tmp_struct, align 4
-  %field_ptr = getelementptr inbounds %Message, ptr %tmp_struct, i32 0, i32 1
-  %field_val = load i64, ptr %field_ptr, align 4
-  store i64 %field_val, ptr %z, align 4
-  %fn_call_square = call i32 @square(i32 3)
-  %fn_call_square5 = call i32 @square(i32 3)
-  ret i32 %fn_call_square5
+  %fn_call_square = call i32 @square(i32 %x2)
+  store i32 %fn_call_square, ptr %x, align 4
+  br label %for.incr
+
+for.incr:                                         ; preds = %for.loop
+  %i3 = load i32, ptr %i, align 4
+  store i32 %i3, ptr %i, align 4
+  %Plus_instr = add i32 %i3, 1
+  br label %for.cond
+
+for.end:                                          ; preds = %for.cond
+  %x4 = load i32, ptr %x, align 4
+  ret i32 %x4
 }
