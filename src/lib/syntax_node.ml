@@ -156,3 +156,8 @@ module Decl =
   end
 
 type prog = Prog of Decl.t list [@@deriving compare, sexp, equal, show]
+
+let is_prog_empty (p: prog) : bool =
+  match p with
+    | Prog [] -> true
+    | _ -> false

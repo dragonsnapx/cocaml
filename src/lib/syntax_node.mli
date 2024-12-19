@@ -167,3 +167,4 @@ module Decl :
   end
 
 type prog = Prog of Decl.t list [@@deriving compare, sexp, equal, show]
+val is_prog_empty : prog -> bool
