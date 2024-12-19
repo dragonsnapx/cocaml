@@ -48,5 +48,11 @@ module Make(Param : ModuleParameter) = struct
   (* Helpers for LLVM shorthands *)
   let append_block name fn = L.append_block context name fn
   let position_at_end block = L.position_at_end block builder
+  let func_entry_builder: L.llbuilder =
+    L.insertion_block builder
+    |> L.block_parent
+    |> L.entry_block
+    |> L.instr_begin
+    |> L.builder_at context
   
 end

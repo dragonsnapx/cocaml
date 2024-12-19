@@ -1,5 +1,3 @@
-[@@@ocaml.warning "-39-32-27-69"]
-
 open Core
 module L = Llvm
 module S = Syntax_node
@@ -11,7 +9,7 @@ module DefinedFunc = struct
     fnvtp: S.VarType.t;
     name: S.Ident.t;
     returns: L.lltype;
-    returns_to: L.llbasicblock;
+    returns_to: L.llbasicblock; [@ocaml.warning "-69"]
   }
 end
 
@@ -34,13 +32,13 @@ struct
     match ident with
     | Ident s -> s
 
-  let rec llvartype_of_vartype (tp: S.VarType.t): L.lltype =
+  let llvartype_of_vartype (tp: S.VarType.t): L.lltype =
     match tp with
     | Int -> C.ll_int_t
     | Float -> C.ll_float_t
     | Double -> C.ll_double_t
     | Void -> C.ll_void_t
-    | Pointer subtp -> C.ll_gen_ptr_t
+    | Pointer _ -> C.ll_gen_ptr_t
     | Char -> C.ll_char_t
     | Long -> C.ll_long_t
     | Typedef custom -> 
@@ -51,7 +49,7 @@ struct
           C.raise_transl_err @@ "Translation Error: Undefined type: " ^ (ident_to_string custom)
       end
     | Struct str -> Hashtbl.find_exn htbl_types str
-    | Array (t, sz) -> C.ll_gen_ptr_t
+    | Array _ -> C.ll_gen_ptr_t
 
   let rec expr_to_vartype (expr: S.Expr.t): S.VarType.t =
     match expr with
@@ -94,9 +92,9 @@ struct
       try (F.lookup_variable C.var_env ident).tp
         with Not_found_s _ -> C.raise_transl_err @@ " Cannot infer type of " ^ (ident_to_string ident)
       end
-    | BinOp (bin_op, expr1, expr2, _) -> S.VarType.Int
+    | BinOp _ -> S.VarType.Int
     | Assign (_, expr, _) -> expr_to_vartype expr
-    | Call (expr, param, _) -> begin
+    | Call (expr, _, _) -> begin
         match Hashtbl.find htbl_functions expr with
         | Some s -> s.fnvtp
         | None -> C.raise_transl_err "Cannot infer return type of function"
@@ -116,7 +114,7 @@ struct
           end
         | PrefixIncrement | PrefixDecrement -> t
       end
-    | PostfixUnOp (expr, postfix_un_op, _) -> expr_to_vartype expr
+    | PostfixUnOp (expr, _, _) -> expr_to_vartype expr
 
   let extract_expr_value (expr: S.Expr.t): L.llvalue =
     match expr with
@@ -130,14 +128,6 @@ struct
         with Not_found_s _  -> C.raise_transl_err @@ "Cannot extract value from " ^ (ident_to_string id)
       end
     | _ -> C.raise_transl_err "extract_expr_value must be called on literal"
-
-  let func_entry_builder (): L.llbuilder =
-    L.insertion_block C.builder
-    |> L.block_parent
-    |> L.entry_block
-    |> L.instr_begin
-    |> L.builder_at C.context
-
 
   let rec declare_function (label: S.Ident.t) (returns: S.VarType.t) (params: (S.VarType.t * S.Ident.t) list) (body: S.Stmt.t) =
     F.enter_block C.var_env;
@@ -304,7 +294,7 @@ struct
         let then_block = C.append_block "if.then" scoped_fn in
         let else_block = begin
           match else_body with
-          | Some b -> C.append_block "if.else" scoped_fn
+          | Some _ -> C.append_block "if.else" scoped_fn
           | None -> then_block
         end in
         let finally_block = C.append_block "if.finally" scoped_fn in
@@ -338,7 +328,7 @@ struct
       (match init_expr with
       | ForExpr expr_init ->
           parse_expr expr_init |> C.ignore_llvalue
-      | ForVarDecl S.Var_decl (is_static, var_type, ident, init_opt, _) ->
+      | ForVarDecl S.Var_decl (_, var_type, ident, init_opt, _) ->
           let ll_var_type = llvartype_of_vartype var_type in
           let ll_var_alloc = L.build_alloca ll_var_type (ident_to_string ident) C.builder in
     
@@ -421,16 +411,10 @@ struct
 
       C.position_at_end end_block;
       nil_return_type
-    | VarDecl S.Var_decl (is_static, vartype, ident, expr, _) ->
+    | VarDecl S.Var_decl (_, vartype, ident, expr, _) ->
       let lltype = llvartype_of_vartype vartype in
       let llname = ident_to_string ident in
-      let alloca = 
-        L.insertion_block C.builder 
-        |> L.block_parent 
-        |> L.entry_block
-        |> L.instr_begin
-        |> L.builder_at C.context
-        |> L.build_alloca lltype llname
+      let alloca = C.func_entry_builder |> L.build_alloca lltype llname
       in
       F.declare_variable C.var_env ident { tp = vartype; ltp = lltype; value = alloca };
       begin
@@ -447,9 +431,9 @@ struct
 
   and parse_decl (decl: S.Decl.t) (scoped_fn: L.llvalue option): L.llvalue =
     match decl with
-    | VarDecl S.Var_decl (is_static, vartype, ident, expr, _) -> begin
+    | VarDecl S.Var_decl (_, _, ident, expr, _) -> begin
         match expr with
-        | Some v -> L.declare_global C.ll_int_t (ident_to_string ident) C.this_module
+        | Some _ -> L.declare_global C.ll_int_t (ident_to_string ident) C.this_module
         | None -> C.raise_transl_err "Global variable must be initialized"
       end
     | FuncDecl (vartype, ident, params, stmt, _) -> declare_function ident vartype params stmt
@@ -460,7 +444,7 @@ struct
       | Some fn -> initialize_struct (s, fn)
       | None -> C.raise_transl_err "Struct cannot be initialized in a context-less environment"
 
-  and declare_struct (S.Struct_decl (struct_name, var_name, decl_ls_opt, _)) =
+  and declare_struct (S.Struct_decl (struct_name, _, decl_ls_opt, _)) =
     let struct_name_str = ident_to_string struct_name in
     let struct_type = L.named_struct_type C.context struct_name_str in
     let (fields, field_types) =
@@ -493,11 +477,7 @@ struct
     in
     let var_name_str = ident_to_string var_name in
     let alloca =
-      L.insertion_block C.builder
-      |> L.block_parent
-      |> L.entry_block
-      |> L.instr_begin
-      |> L.builder_at C.context
+      C.func_entry_builder
       |> L.build_alloca struct_type var_name_str
     in
     F.declare_variable C.var_env var_name { tp = Struct struct_name; ltp = struct_type; value = alloca };
@@ -565,13 +545,13 @@ struct
         | Some tp -> Hashtbl.set htbl_types ~key:custom ~data:tp; nil_return_type
         | None -> C.raise_transl_err "Could not typecast from unknown type to another."
       end
-      | v -> let lltype = llvartype_of_vartype from_vartype in
+      | _ -> let lltype = llvartype_of_vartype from_vartype in
         Hashtbl.set htbl_types ~key:to_vartype ~data:lltype;
         nil_return_type
     end
 
   (** Takes a list of statements, outputs LLVM IR code *)
-  let rec generate_llvm_ir (prog: S.prog): L.llvalue list =
+  let generate_llvm_ir (prog: S.prog): L.llvalue list =
     (* Main function here *)
     match prog with
       | Prog ls -> List.map ls ~f:(fun el -> parse_decl el None)
